@@ -8,7 +8,7 @@
 
 #login-left {
   flex: 1;
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 40%, #2563EB 100%);
   display: flex;
   align-items: center;
   justify-content: center;

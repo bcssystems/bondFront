@@ -1168,14 +1168,14 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
     .header {
       text-align: center;
       padding-bottom: 8px;
-      border-bottom: 3px solid #1a3a5c;
+      border-bottom: 3px solid #2563EB;
       margin-bottom: 10px;
     }
     .header h1 {
       font-size: 22pt;
       font-weight: 800;
       letter-spacing: 4px;
-      color: #1a3a5c;
+      color: #2563EB;
       text-transform: uppercase;
     }
     .header .sub {
@@ -1186,7 +1186,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
     }
     .header .folio {
       font-size: 13pt;
-      color: #1a3a5c;
+      color: #2563EB;
       font-weight: 700;
       margin-top: 4px;
       letter-spacing: 1px;
@@ -1215,7 +1215,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       width: 100%;
       border-collapse: collapse;
     }
-    table.detalles thead { background: #1a3a5c; color: #fff; }
+    table.detalles thead { background: #2563EB; color: #fff; }
     table.detalles th {
       font-size: 7.5pt;
       text-align: left;
@@ -1252,7 +1252,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       font-weight: 700;
       border-top: 2px solid #222;
       padding-top: 6px;
-      color: #1a3a5c;
+      color: #2563EB;
     }
     .section { margin-top: 8px; }
     .section-title {
@@ -1268,7 +1268,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       padding: 6px 8px;
       background: #f0f4f8;
       font-size: 8.5pt;
-      border-left: 3px solid #1a3a5c;
+      border-left: 3px solid #2563EB;
     }
     .footer {
       text-align: center;
@@ -1291,7 +1291,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
   <div class="header">
-    <h1>DENVER HATS</h1>
+    <h1>BONDS</h1>
     <div class="sub">Sistema de Administraci\u00f3n</div>
     <div class="folio">FACTURA #${venta.idVenta}</div>
   </div>
@@ -1332,7 +1332,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
     ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
     ${creditTermsHtml}
     <div class="footer">
-      <strong>DENVER HATS</strong> &mdash; Sistema de Administraci\u00f3n<br>
+      <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
       Este documento es un comprobante interno de venta<br>
       ${fechaStr} ${horaStr}
     </div>
@@ -1367,7 +1367,7 @@ function imprimirTicketCorte(corte) {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; padding: 20px; }
     .header { text-align: center; margin-bottom: 16px; }
-    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #8B4513; margin-bottom: 2px; }
+    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #2563EB; margin-bottom: 2px; }
     .header .sub { font-size: 10px; color: #666; }
     .divider { border-top: 1px dashed #000; margin: 8px 0; }
     .info-table { width: 100%; font-size: 11px; margin-bottom: 8px; }
@@ -1383,7 +1383,7 @@ function imprimirTicketCorte(corte) {
 </head>
 <body>
   <div class="header">
-    <h1>DENVER HATS</h1>
+    <h1>BONDS</h1>
     <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>

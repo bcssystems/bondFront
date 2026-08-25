@@ -1,12 +1,12 @@
 :root {
-  --primary: #8B4513;
-  --primary-hover: #6B3410;
-  --primary-light: #FDF4E6;
-  --primary-dark: #5A2D0E;
-  --secondary: #D4A574;
-  --secondary-light: #FBF0E6;
-  --accent: #C4956A;
-  --accent-light: #F5EDE6;
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #EFF6FF;
+  --primary-dark: #1E3A5F;
+  --secondary: #60A5FA;
+  --secondary-light: #DBEAFE;
+  --accent: #3B82F6;
+  --accent-light: #EFF6FF;
   --danger: #DC2626;
   --danger-light: #FEF2F2;
   --warning: #F59E0B;
@@ -165,7 +165,7 @@ body {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139,69,19,0.3);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
 }
 .btn-outline-primary {
   color: var(--primary);
@@ -186,7 +186,7 @@ body {
 }
 .form-control:focus, .form-select:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(139,69,19,0.15);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
 }
 .form-label {
   font-size: 0.85rem;

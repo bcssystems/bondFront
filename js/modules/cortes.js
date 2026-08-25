@@ -236,7 +236,7 @@ function reimprimirCorte() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; padding: 20px; }
     .header { text-align: center; margin-bottom: 16px; }
-    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #8B4513; margin-bottom: 2px; }
+    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #2563EB; margin-bottom: 2px; }
     .header .sub { font-size: 10px; color: #666; }
     .divider { border-top: 1px dashed #000; margin: 8px 0; }
     .info-table { width: 100%; font-size: 11px; margin-bottom: 8px; }
@@ -252,7 +252,7 @@ function reimprimirCorte() {
 </head>
 <body>
   <div class="header">
-    <h1>DENVER HATS</h1>
+    <h1>BONDS</h1>
     <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
