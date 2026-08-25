@@ -1,0 +1,136 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-address-book me-2" style="color:var(--primary)"></i>Clientes</h4>
+      <small class="text-muted">Gesti&oacute;n de clientes</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevoCliente">
+      <i class="fas fa-plus me-1"></i> Nuevo Cliente
+    </button>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" class="form-control" id="searchCliente" placeholder="Buscar por nombre, tel&eacute;fono...">
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellidos</th>
+            <th>Tel&eacute;fono</th>
+            <th>Pa&iacute;s</th>
+            <th>R&eacute;gimen Fiscal</th>
+            <th>Direcci&oacute;n</th>
+            <th>Cr&eacute;dito</th>
+            <th>Saldo Actual</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableClientesBody">
+          <tr><td colspan="9"><div class="empty-state"><i class="fas fa-address-book"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3" id="paginationClientes"></div>
+</div>
+
+<div class="modal fade" id="clienteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="clienteModalTitle">Nuevo Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formCliente">
+          <input type="hidden" id="clienteId">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="clienteNombre" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Apellido Paterno <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="clienteApaterno" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Apellido Materno</label>
+              <input type="text" class="form-control" id="clienteAmaterno" maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tel&eacute;fono <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="clienteTelefono" required maxlength="30">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Pa&iacute;s</label>
+              <select class="form-select" id="clientePais"></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">WhatsApp</label>
+              <input type="text" class="form-control" id="clienteWhatsapp" maxlength="20">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Empresa</label>
+              <input type="text" class="form-control" id="clienteEmpresa" maxlength="200">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">R&eacute;gimen Fiscal <span class="text-danger">*</span></label>
+              <select class="form-select" id="clienteRegimen"></select>
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-2">
+              <label class="form-label">C.P. <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="clienteCp" maxlength="5" placeholder="12345" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <input type="text" class="form-control" id="clienteEstado" readonly>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Municipio</label>
+              <input type="text" class="form-control" id="clienteMunicipio">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Colonia</label>
+              <select class="form-select" id="clienteColonia">
+                <option value="">Seleccionar...</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Calle</label>
+              <input type="text" class="form-control" id="clienteCalle" maxlength="200">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">N&uacute;m. Exterior</label>
+              <input type="text" class="form-control" id="clienteNumExt" maxlength="20">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">N&uacute;m. Interior</label>
+              <input type="text" class="form-control" id="clienteNumInt" maxlength="20">
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-3">
+              <div class="form-check mt-2">
+                <input type="checkbox" class="form-check-input" id="clienteTieneCredito">
+                <label class="form-check-label" for="clienteTieneCredito">¿Tiene cr&eacute;dito?</label>
+              </div>
+            </div>
+            <div class="col-md-3" id="clienteLimiteCreditoGroup" style="display:none">
+              <label class="form-label">L&iacute;mite de Cr&eacute;dito</label>
+              <input type="number" class="form-control" id="clienteLimiteCredito" step="0.01" min="0">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarCliente">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

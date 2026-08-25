@@ -1,0 +1,354 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-box me-2" style="color:var(--primary)"></i>Productos</h4>
+      <small class="text-muted">Gesti&oacute;n de inventario de productos</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevoProducto">
+      <i class="fas fa-plus me-1"></i> Nuevo Producto
+    </button>
+  </div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center">
+      <div class="text-muted small">Stock Global</div>
+      <div class="h4 mb-0 fw-bold" id="statsStock">0</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center">
+      <div class="text-muted small">Productos Activos</div>
+      <div class="h4 mb-0 fw-bold" id="statsActivos">0</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center" style="cursor:pointer" id="statsCostoTotalCard">
+      <div class="text-muted small">Costo Total Inventario</div>
+      <div class="h4 mb-0 fw-bold" id="statsCostoTotal" style="color:var(--primary)">$0.00</div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-1 mb-3 align-items-center">
+  <select class="form-select form-select-sm" id="exportSucursalSelect" style="width:auto;min-width:190px;max-width:230px">
+    <option value="">Todas las sucursales</option>
+  </select>
+  <button class="btn btn-outline-success btn-sm ripple" id="btnExportarInventario">
+    <i class="fas fa-file-csv me-1"></i> Exportar Inventario
+  </button>
+</div>
+
+<div class="modal fade" id="costoSucursalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Costo por Sucursal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="costoSucursalBody">
+        <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="filter-bar filter-bar-2cols">
+    <div class="input-group">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input type="text" class="form-control" id="searchProducto" placeholder="Buscar por SKU o nombre...">
+    </div>
+    <div class="d-flex gap-2">
+      <select class="form-select sucursal-select" id="filterSucursal">
+        <option value="">Todas las sucursales</option>
+      </select>
+      <button class="btn btn-outline-secondary btn-sm text-nowrap" id="btnToggleInactivos">
+        <i class="fas fa-eye me-1"></i> Mostrar inactivos
+      </button>
+    </div>
+  </div>
+
+  <div class="panel-card p-0 overflow-hidden">
+    <div class="productos-tree" id="productosTree">
+      <div class="productos-tree-header">
+        <span class="th-toggle"></span>
+        <span class="th-img"></span>
+        <span class="th-sku">SKU</span>
+        <span class="th-nombre">Nombre</span>
+        <span class="th-stock">Stock</span>
+        <span class="th-precio">Precio</span>
+        <span class="th-tipo">Tipo</span>
+        <span class="th-estado">Estado</span>
+        <span class="th-acciones"></span>
+      </div>
+      <ul class="producto-tree-root" id="productoTreeRoot">
+        <li class="producto-node empty-tree"><div class="empty-state"><i class="fas fa-box-open"></i><p>Cargando...</p></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mt-3" id="paginationProductos"></div>
+</div>
+
+<div class="modal fade" id="productoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="productoModalTitle">Nuevo Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formProducto">
+          <input type="hidden" id="productoId">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">SKU (generado autom&aacute;ticamente)</label>
+              <input type="text" class="form-control" id="productoSku" disabled>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="productoNombre" required maxlength="200">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripci&oacute;n</label>
+              <textarea class="form-control" id="productoDescripcion" rows="2" maxlength="2000"></textarea>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 1</label>
+              <input type="number" class="form-control" id="productoPrecio1" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 2</label>
+              <input type="number" class="form-control" id="productoPrecio2" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 3</label>
+              <input type="number" class="form-control" id="productoPrecio3" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 4</label>
+              <input type="number" class="form-control" id="productoPrecio4" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Costo</label>
+              <input type="number" class="form-control" id="productoCosto" step="0.01" min="0">
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="productoTieneVariantes">
+                <label class="form-check-label fw-semibold" for="productoTieneVariantes">Tiene variantes (talla, color, etc.)</label>
+              </div>
+            </div>
+            <div class="col-12" id="stockSucursalSection">
+              <label class="form-label fw-semibold">Stock por Sucursal</label>
+              <div id="stockSucursalInputs"></div>
+            </div>
+            <div class="col-12" id="variantesSection" style="display:none">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label fw-semibold mb-0">Variantes</label>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarVariante">
+                  <i class="fas fa-plus"></i> Agregar Variante
+                </button>
+              </div>
+              <div id="variantesContainer" class="mb-2">
+                <div class="text-muted small">No hay variantes. Haz clic en "Agregar Variante" para crear una.</div>
+              </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="productoActivo" checked>
+                <label class="form-check-label" for="productoActivo">Producto activo</label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarProducto">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="varianteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="varianteModalTitle">Agregar Variante</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formVariante">
+          <input type="hidden" id="varianteIdx">
+          <div class="mb-3">
+            <label class="form-label">SKU (generado autom&aacute;ticamente)</label>
+            <input type="text" class="form-control" id="varianteSku" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nombre (dejar vac&iacute;o para heredar del producto base)</label>
+            <input type="text" class="form-control" id="varianteNombre" maxlength="255">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Valores de Atributos</label>
+            <div id="varianteAtributosContainer"></div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-3">
+              <label class="form-label">Precio 1</label>
+              <input type="number" class="form-control form-control-sm" id="variantePrecio1" step="0.01" min="0" disabled>
+            </div>
+            <div class="col-3">
+              <label class="form-label">Precio 2</label>
+              <input type="number" class="form-control form-control-sm" id="variantePrecio2" step="0.01" min="0" disabled>
+            </div>
+            <div class="col-3">
+              <label class="form-label">Precio 3</label>
+              <input type="number" class="form-control form-control-sm" id="variantePrecio3" step="0.01" min="0" disabled>
+            </div>
+            <div class="col-3">
+              <label class="form-label">Precio 4</label>
+              <input type="number" class="form-control form-control-sm" id="variantePrecio4" step="0.01" min="0" disabled>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Stock por Sucursal</label>
+            <div id="varianteStockInputs"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarVariante">Agregar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="multimediaModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">
+          <i class="fas fa-images me-2" style="color:var(--primary)"></i>
+          <span id="multimediaProductoName">Producto</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-lg-7">
+            <h6 class="fw-semibold mb-3"><i class="fas fa-photo-video me-1"></i> Multimedia</h6>
+            <div class="media-gallery mb-3" id="multimediaGallery"></div>
+            <div class="mt-2 d-flex gap-2">
+              <label class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-upload me-1"></i> Subir archivo
+                <input type="file" id="multimediaInput" accept="image/*,video/*" style="display:none">
+              </label>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCamara">
+                <i class="fas fa-camera me-1"></i> C&aacute;mara
+              </button>
+              <small class="text-muted ms-2">Im&aacute;genes o videos</small>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-semibold mb-0"><i class="fas fa-warehouse me-1"></i> Stock por Sucursal</h6>
+              <button class="btn btn-sm btn-outline-primary" id="btnRegistrarMovimiento">
+                <i class="fas fa-plus"></i> Movimiento
+              </button>
+            </div>
+            <div id="stockSucursalList"></div>
+            <hr>
+            <h6 class="fw-semibold mb-2"><i class="fas fa-history me-1"></i> &Uacute;ltimos Movimientos</h6>
+            <div id="movimientosRecientes"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="camaraModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-camera me-2" style="color:var(--primary)"></i>C&aacute;mara</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" id="btnCerrarCamara"></button>
+      </div>
+      <div class="modal-body text-center">
+        <video id="camaraVideo" autoplay playsinline style="width:100%;max-height:60vh;border-radius:8px;background:#000"></video>
+        <div class="mt-3 text-muted small" id="camaraStatus">Solicitando acceso a la c&aacute;mara...</div>
+      </div>
+      <div class="modal-footer border-0 justify-content-center">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal" id="btnCancelarCamara">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnTomarFoto">
+          <i class="fas fa-camera me-1"></i> Tomar foto
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="movimientoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Registrar Movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="movimientoForm">
+          <input type="hidden" id="movimientoProductoId">
+          <div class="mb-3">
+            <label class="form-label">Tipo de Movimiento</label>
+            <select class="form-select" id="movimientoTipo">
+              <option value="ENTRADA">Entrada</option>
+              <option value="SALIDA">Salida</option>
+              <option value="AJUSTE">Ajuste</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="movimientoCantidad" min="1" required>
+          </div>
+          <div id="movimientoSucursalGroup" class="mb-3">
+            <label class="form-label">Sucursal</label>
+            <select class="form-select sucursal-stock-select" id="movimientoSucursal">
+              <option value="">Global</option>
+            </select>
+          </div>
+          <div id="movimientoTransferenciaGroup" class="mb-3 d-none">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Sucursal Origen</label>
+                <select class="form-select sucursal-stock-select" id="movimientoSucursalOrigen">
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Sucursal Destino</label>
+                <select class="form-select sucursal-stock-select" id="movimientoSucursalDestino">
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Referencia</label>
+            <input type="text" class="form-control" id="movimientoReferencia" placeholder="Factura, nota, etc.">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Observaci&oacute;n</label>
+            <textarea class="form-control" id="movimientoObservacion" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarMovimiento">Registrar</button>
+      </div>
+    </div>
+  </div>
+</div>
