@@ -218,6 +218,48 @@ body {
   transition: box-shadow var(--transition);
 }
 
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.stat-info {
+  min-width: 0;
+}
+.stat-number {
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .table-custom thead th {
   font-size: 0.75rem;
   font-weight: 600;
@@ -828,4 +870,34 @@ body {
   .pos-right {
     width: 100%;
   }
+}
+
+/* ------- Widget captura INE ------- */
+.ine-cam-wrap {
+  position: relative;
+  background: #000;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ine-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ine-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.ine-cam-placeholder {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem;
 }

@@ -4,9 +4,6 @@
       <h4><i class="fas fa-cash-register me-2" style="color:var(--primary)"></i>Cajas</h4>
       <small class="text-muted">Gesti&oacute;n de cajas registradoras</small>
     </div>
-    <button class="btn btn-primary ripple" id="btnNuevaCaja">
-      <i class="fas fa-plus me-1"></i> Nueva Caja
-    </button>
   </div>
 
   <div class="filter-bar">
@@ -21,6 +18,7 @@
         <thead>
           <tr>
             <th>Nombre</th>
+            <th>Tipo</th>
             <th>Sucursal</th>
             <th>Saldo Actual</th>
             <th>Estado</th>
@@ -29,7 +27,7 @@
           </tr>
         </thead>
         <tbody id="tableCajasBody">
-          <tr><td colspan="6"><div class="empty-state"><i class="fas fa-cash-register"></i><p>Cargando...</p></div></td></tr>
+          <tr><td colspan="7"><div class="empty-state"><i class="fas fa-cash-register"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -49,6 +47,14 @@
           <div class="mb-3">
             <label class="form-label">Nombre <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="cajaNombre" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo <span class="text-danger">*</span></label>
+            <select class="form-select" id="cajaTipo">
+              <option value="NORMAL">Normal</option>
+              <option value="CHICA">Chica</option>
+            </select>
+            <div class="form-text">D&oacute;nde se retroalimenta el fondo de caja chica.</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Sucursal <span class="text-danger">*</span></label>

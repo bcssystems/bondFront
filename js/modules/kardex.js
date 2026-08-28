@@ -41,6 +41,8 @@ function bindEvents() {
   });
 
   document.getElementById('btnExportarKardex')?.addEventListener('click', exportarCSV);
+  document.getElementById('btnExportarKardexExcel')?.addEventListener('click', exportarExcel);
+  document.getElementById('btnExportarKardexPdf')?.addEventListener('click', exportarPDF);
 }
 
 async function cargarSucursales() {
@@ -169,4 +171,59 @@ function exportarCSV() {
   link.click();
   URL.revokeObjectURL(link.href);
   Utils.showToast('Kardex exportado', 'success');
+}
+
+function buildKardexRows() {
+  const headers = ['Fecha', 'Tipo', 'Entidad', 'Detalle', 'Cantidad', 'Stock Anterior', 'Stock Nuevo', 'Usuario', 'Referencia', 'Origen'];
+  const rows = state.data.map(r => [
+    r.fecha,
+    r.tipo,
+    r.entidad,
+    r.detalle,
+    r.cantidad != null ? r.cantidad : '',
+    r.stockAnterior != null ? r.stockAnterior : '',
+    r.stockNuevo != null ? r.stockNuevo : '',
+    r.usuario,
+    r.referencia || '',
+    r.origen
+  ]);
+  return { headers, rows };
+}
+
+function exportarExcel() {
+  if (!state.data || state.data.length === 0) {
+    Utils.showToast('No hay datos para exportar', 'warning');
+    return;
+  }
+  const { headers, rows } = buildKardexRows();
+  Utils.downloadXls('kardex_' + new Date().toISOString().slice(0, 10) + '.xls', 'Kardex', headers, rows);
+  Utils.showToast('Kardex exportado a Excel', 'success');
+}
+
+function exportarPDF() {
+  if (!state.data || state.data.length === 0) {
+    Utils.showToast('No hay datos para exportar', 'warning');
+    return;
+  }
+  const rowsHtml = state.data.map(r =>
+    '<tr>' +
+      '<td>' + Utils.formatDateTime(r.fecha) + '</td>' +
+      '<td>' + Utils.capitalize(r.tipo.replace('_STOCK', '').replace('_', ' ')) + '</td>' +
+      '<td>' + Utils.esc(r.entidad) + '</td>' +
+      '<td>' + Utils.esc(r.detalle) + '</td>' +
+      '<td class="right">' + (r.cantidad != null ? r.cantidad : '') + '</td>' +
+      '<td class="right">' + (r.stockAnterior != null ? r.stockAnterior + ' → ' + r.stockNuevo : '') + '</td>' +
+      '<td>' + Utils.esc(r.usuario) + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const body =
+    '<h2>KARDEX DE MOVIMIENTOS</h2>' +
+    '<h4>Generado: ' + new Date().toLocaleString() + ' | Registros: ' + state.data.length + '</h4>' +
+    '<table>' +
+      '<thead><tr><th>Fecha</th><th>Tipo</th><th>Entidad</th><th>Detalle</th><th class="right">Cant.</th><th class="right">Stock</th><th>Responsable</th></tr></thead>' +
+      '<tbody>' + rowsHtml + '</tbody>' +
+    '</table>';
+
+  Utils.openPrintWindow('Kardex', body);
 }

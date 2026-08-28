@@ -27,6 +27,7 @@ function bindEvents() {
   document.getElementById('tableCreditosBody')?.addEventListener('click', handleCreditoClick);
   document.getElementById('btnCerrarDetalle')?.addEventListener('click', cerrarDetalle);
   document.getElementById('btnAbonarTodas')?.addEventListener('click', abrirAbonoGeneralModal);
+  document.getElementById('btnImprimirEstadoCuenta')?.addEventListener('click', imprimirEstadoCuenta);
   document.getElementById('btnConfirmarAbono')?.addEventListener('click', confirmarAbono);
   document.getElementById('btnConfirmarAbonoGeneral')?.addEventListener('click', confirmarAbonoGeneral);
   document.getElementById('abonoTipo')?.addEventListener('change', function() {
@@ -196,6 +197,98 @@ function abrirAbonoModal(idCredito) {
   document.getElementById('abonoTipo').value = 'PARCIAL';
   document.getElementById('btnConfirmarAbono').dataset.creditoId = idCredito;
   new bootstrap.Modal(document.getElementById('abonoModal')).show();
+}
+
+async function imprimirEstadoCuenta() {
+  if (!state.selectedClienteId) return;
+  const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+  if (!cliente) return;
+
+  let configs = {};
+  let detallesEstado = {};
+  try {
+    const list = await API.get('/configuraciones');
+    (list || []).forEach(c => { configs[c.clave] = c.valor; });
+    if (state.creditos.length > 0) {
+      const ec = await API.get('/creditos/' + state.creditos[0].idCredito + '/estado-cuenta');
+      detallesEstado = ec || {};
+    }
+  } catch (_) {}
+
+  const totalPendiente = (state.creditos || []).reduce((s, c) => s + (c.saldoPendiente || 0), 0);
+
+  const creditosRows = (state.creditos || []).map(c => `<tr>
+    <td>${c.idCredito}</td>
+    <td>#${c.folio || ''}</td>
+    <td class="right">$${(c.montoOriginal || 0).toFixed(2)}</td>
+    <td class="right">$${(c.porcentajeInteres || 0)}%</td>
+    <td class="right">$${(c.saldoPendiente || 0).toFixed(2)}</td>
+  </tr>`).join('');
+
+  const movimientos = [...state.movimientos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  const movRows = (movimientos || []).map(m => {
+    const tipo = m.tipo === 'CARGO' ? 'Cargo'
+      : m.tipo === 'ABONO' ? 'Abono'
+      : m.tipo === 'LIQUIDACION' ? 'Liquidaci\u00f3n' : m.tipo;
+    return `<tr>
+      <td>${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
+      <td>${tipo}</td>
+      <td class="right">${m.tipo === 'CARGO' ? '' : '-'}$${(m.monto || 0).toFixed(2)}</td>
+      <td class="right">$${(m.saldoNuevo || 0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<html><head><meta charset="utf-8"><title>Estado de Cuenta</title>
+  <style>
+    body { font-family: 'Consolas', monospace; font-size: 12px; color: #222; width: 620px; margin: 0 auto; padding: 16px; }
+    h2 { text-align: center; letter-spacing: 2px; margin-bottom: 2px; }
+    .sub { text-align: center; font-size: 11px; margin-bottom: 4px; }
+    h3 { text-align: center; margin: 6px 0; }
+    .line { border-top: 1px dashed #222; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 4px 6px; border: 1px solid #999; font-size: 11px; }
+    th { background: #eee; text-align: center; }
+    .right { text-align: right; }
+    .info { display: flex; justify-content: space-between; margin: 4px 0; }
+    .total { font-size: 14px; font-weight: bold; }
+    .firma { margin-top: 60px; text-align: center; }
+    @media print { body { width: auto; } }
+  </style></head><body>
+    <h2>BONDS</h2>
+    <div class="sub">${Utils.esc(configs['descripcionEmpresa'] || '')}</div>
+    <div class="sub">${Utils.esc(configs['direccionEmpresa'] || '')}</div>
+    <div class="sub">Titular: ${Utils.esc(configs['titularPagare'] || '')}</div>
+    <h3>ESTADO DE CUENTA</h3>
+    <div class="line"></div>
+    <div class="info"><span><strong>Cliente:</strong> ${Utils.esc(cliente.nombre + ' ' + (cliente.apellidoPaterno || ''))}</span></div>
+    <div class="info"><span><strong>Tel\u00e9fono:</strong> ${Utils.esc(cliente.telefono || '-')}</span><span><strong>Total pendiente:</strong> <span class="total">$${totalPendiente.toFixed(2)}</span></span></div>
+    <div class="info"><span><strong>L\u00edmite de cr\u00e9dito:</strong> $${(cliente.limiteCredito || 0).toFixed(2)}</span><span><strong>Tasa de mora mensual:</strong> ${detallesEstado.tasaInteresMora != null ? detallesEstado.tasaInteresMora + '%' : configs['tasaInteresMoraPagare'] + '%'}</span></div>
+    <div class="info"><span>Fecha: ${new Date().toLocaleDateString()}</span></div>
+    <div class="line"></div>
+    <h3 style="text-align:left;font-size:12px">Cr\u00e9ditos</h3>
+    <table>
+      <thead><tr><th>#</th><th>Pagar\u00e9</th><th class="right">Original</th><th class="right">Inter\u00e9s</th><th class="right">Pendiente</th></tr></thead>
+      <tbody>${creditosRows}</tbody>
+    </table>
+    <div class="line"></div>
+    <h3 style="text-align:left;font-size:12px">Movimientos</h3>
+    <table>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th class="right">Monto</th><th class="right">Saldo</th></tr></thead>
+      <tbody>${movRows || '<tr><td colspan="4" style="text-align:center">Sin movimientos</td></tr>'}</tbody>
+    </table>
+    <div class="firma">____________________________________<br>Firma del cliente</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=680,height=700');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+  } else {
+    Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
+    return;
+  }
+  setTimeout(() => { win.print(); }, 300);
 }
 
 async function confirmarAbono() {

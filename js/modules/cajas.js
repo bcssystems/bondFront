@@ -7,7 +7,6 @@ export function init() {
 }
 
 function bindEvents() {
-  document.getElementById('btnNuevaCaja')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCaja')?.addEventListener('click', guardarCaja);
   document.getElementById('tableCajasBody')?.addEventListener('click', handleTableClick);
   document.getElementById('filtroSucursal')?.addEventListener('change', cargarCajas);
@@ -45,7 +44,7 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-cash-register"></i><p>No hay cajas</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-cash-register"></i><p>No hay cajas</p></div></td></tr>';
     return;
   }
 
@@ -53,6 +52,7 @@ function renderTable() {
     const activa = c.estado === 'ABIERTA';
     return `<tr>
       <td><strong>${Utils.esc(c.nombre)}</strong></td>
+      <td><span class="badge-status ${c.tipo === 'CHICA' ? 'badge-warning' : 'badge-active'}">${c.tipo || 'NORMAL'}</span></td>
       <td>${Utils.esc(c.sucursalNombre) || '-'}</td>
       <td><strong>$${c.saldoActual.toFixed(2)}</strong></td>
       <td><span class="badge-status ${activa ? 'badge-active' : 'badge-inactive'}">${c.estado}</span></td>
@@ -96,6 +96,7 @@ function abrirModal(id) {
     if (c) {
       document.getElementById('cajaId').value = c.idCaja;
       document.getElementById('cajaNombre').value = c.nombre || '';
+      document.getElementById('cajaTipo').value = c.tipo || 'NORMAL';
       document.getElementById('cajaSucursal').value = c.idSucursal || '';
       Utils.updateSearchableOptions('cajaSucursal');
     }
@@ -106,6 +107,7 @@ function abrirModal(id) {
 async function guardarCaja() {
   const data = {
     nombre: document.getElementById('cajaNombre').value.trim(),
+    tipo: document.getElementById('cajaTipo').value,
     idSucursal: parseInt(document.getElementById('cajaSucursal').value),
   };
 

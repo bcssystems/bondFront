@@ -11,6 +11,10 @@
 
   <div class="filter-bar">
     <input type="text" class="form-control" id="searchCliente" placeholder="Buscar por nombre, tel&eacute;fono...">
+    <div class="form-check ms-2 mt-2">
+      <input type="checkbox" class="form-check-input" id="filtroListaNegra">
+      <label class="form-check-label small" for="filtroListaNegra">Solo lista negra</label>
+    </div>
   </div>
 
   <div class="panel-card overflow-hidden">
@@ -21,16 +25,17 @@
             <th>Nombre</th>
             <th>Apellidos</th>
             <th>Tel&eacute;fono</th>
-            <th>Pa&iacute;s</th>
+            <th>RFC</th>
             <th>R&eacute;gimen Fiscal</th>
             <th>Direcci&oacute;n</th>
             <th>Cr&eacute;dito</th>
-            <th>Saldo Actual</th>
-            <th style="width:100px"></th>
+            <th>Saldo</th>
+            <th>Lista negra</th>
+            <th style="width:170px"></th>
           </tr>
         </thead>
         <tbody id="tableClientesBody">
-          <tr><td colspan="9"><div class="empty-state"><i class="fas fa-address-book"></i><p>Cargando...</p></div></td></tr>
+          <tr><td colspan="10"><div class="empty-state"><i class="fas fa-address-book"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -83,6 +88,19 @@
               <select class="form-select" id="clienteRegimen"></select>
             </div>
             <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-6">
+              <label class="form-label">RFC</label>
+              <input type="text" class="form-control" id="clienteRfc" maxlength="13" placeholder="Persona moral: 12 car&aacute;cteres">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Representante legal</label>
+              <input type="text" class="form-control" id="clienteRepresentanteLegal" maxlength="200">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Direcci&oacute;n de entrega</label>
+              <input type="text" class="form-control" id="clienteDireccionEntrega" maxlength="300">
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
             <div class="col-md-2">
               <label class="form-label">C.P. <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="clienteCp" maxlength="5" placeholder="12345" required>
@@ -124,12 +142,120 @@
               <label class="form-label">L&iacute;mite de Cr&eacute;dito</label>
               <input type="number" class="form-control" id="clienteLimiteCredito" step="0.01" min="0">
             </div>
+            <div class="col-md-3" id="clienteCreditoIlimitadoGroup" style="display:none">
+              <div class="form-check mt-4">
+                <input type="checkbox" class="form-check-input" id="clienteCreditoIlimitado">
+                <label class="form-check-label small" for="clienteCreditoIlimitado">Sin l&iacute;mite (ilimitado)</label>
+              </div>
+            </div>
           </div>
         </form>
       </div>
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarCliente">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal INE -->
+<div class="modal fade" id="clienteIneModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="clienteIneTitle">Documento INE</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Cara frontal</label>
+            <div class="ine-cam-wrap" id="ineFrontalCamWrap">
+              <video id="ineFrontalVideo" class="ine-video d-none" autoplay playsinline muted></video>
+              <canvas id="ineFrontalOverlay" class="ine-overlay d-none"></canvas>
+              <div class="ine-cam-placeholder" id="ineFrontalPlaceholder">
+                <i class="fas fa-id-card me-1"></i> Pulsa &quot;Activar c&aacute;mara&quot; y acerca la INE
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-primary btn-sm flex-fill" id="ineFrontalActivate"><i class="fas fa-camera me-1"></i>Activar c&aacute;mara</button>
+              <button type="button" class="btn btn-outline-danger btn-sm flex-fill d-none" id="ineFrontalCapture"><i class="fas fa-camera-retro me-1"></i>Capturar manual</button>
+            </div>
+            <div class="d-none" id="ineFrontalFileRow">
+              <input type="file" class="form-control form-control-sm mt-2" id="ineFrontal" accept="image/*">
+            </div>
+            <div class="mt-2 text-end small">
+              <a href="#" class="text-muted" id="ineFrontalFileToggle"><i class="fas fa-file-upload me-1"></i>subir desde archivo</a>
+              <a href="#" class="text-muted d-none ms-2" id="ineFrontalRetake"><i class="fas fa-redo me-1"></i>retomar</a>
+            </div>
+            <div class="mt-2" id="ineFrontalPreview"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Cara trasera</label>
+            <div class="ine-cam-wrap" id="ineTraseraCamWrap">
+              <video id="ineTraseraVideo" class="ine-video d-none" autoplay playsinline muted></video>
+              <canvas id="ineTraseraOverlay" class="ine-overlay d-none"></canvas>
+              <div class="ine-cam-placeholder" id="ineTraseraPlaceholder">
+                <i class="fas fa-id-card me-1"></i> Pulsa &quot;Activar c&aacute;mara&quot; y acerca la INE
+              </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-primary btn-sm flex-fill" id="ineTraseraActivate"><i class="fas fa-camera me-1"></i>Activar c&aacute;mara</button>
+              <button type="button" class="btn btn-outline-danger btn-sm flex-fill d-none" id="ineTraseraCapture"><i class="fas fa-camera-retro me-1"></i>Capturar manual</button>
+            </div>
+            <div class="d-none" id="ineTraseraFileRow">
+              <input type="file" class="form-control form-control-sm mt-2" id="ineTrasera" accept="image/*">
+            </div>
+            <div class="mt-2 text-end small">
+              <a href="#" class="text-muted" id="ineTraseraFileToggle"><i class="fas fa-file-upload me-1"></i>subir desde archivo</a>
+              <a href="#" class="text-muted d-none ms-2" id="ineTraseraRetake"><i class="fas fa-redo me-1"></i>retomar</a>
+            </div>
+            <div class="mt-2" id="ineTraseraPreview"></div>
+          </div>
+        </div>
+        <hr>
+        <label class="form-label fw-semibold">C&oacute;digo de lector (dorso manual)</label>
+        <input type="text" class="form-control" id="ineCodigoLector" placeholder="C&oacute;digo QR / c&oacute;digo de lector del INE">
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnSubirIne">Subir INE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal precios por cliente -->
+<div class="modal fade" id="preciosClienteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Precios especiales <span id="preciosClienteNombre" class="text-muted small"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-custom mb-0">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style="width:140px">Precio especial</th>
+                <th style="width:60px"></th>
+              </tr>
+            </thead>
+            <tbody id="tablePreciosClienteBody"></tbody>
+          </table>
+        </div>
+        <div class="d-flex gap-2 mt-2 align-items-center">
+          <select class="form-select" id="preciosClienteProducto" style="max-width:320px"></select>
+          <input type="number" class="form-control" id="preciosClienteMonto" placeholder="Precio" step="0.01" min="0" style="max-width:140px">
+          <button class="btn btn-primary btn-sm" id="btnAgregarPrecioCliente"><i class="fas fa-plus"></i></button>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-success px-4 ripple" id="btnGuardarPreciosCliente">Guardar precios</button>
       </div>
     </div>
   </div>

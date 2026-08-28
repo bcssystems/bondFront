@@ -35,7 +35,6 @@ function bindEvents() {
   document.getElementById('cotCartBody')?.addEventListener('click', handleCartClick);
   document.getElementById('btnGuardarCotizacion')?.addEventListener('click', guardarCotizacion);
   document.getElementById('btnConfirmarCancelarCot')?.addEventListener('click', confirmarCancelar);
-  document.getElementById('cotPrecioSelector')?.addEventListener('change', actualizarPreciosCart);
   document.getElementById('cotSucursal')?.addEventListener('change', (e) => {
     state.idSucursalSeleccionada = parseInt(e.target.value) || null;
     if (state.productos.length > 0) buscarProductos(document.getElementById('cotProductSearch')?.value?.trim() ? false : true);
@@ -204,7 +203,6 @@ async function abrirModalNueva() {
   document.getElementById('cotMontoEnvioWrapper')?.classList.add('d-none');
   document.getElementById('cotProductSearch').value = '';
   document.getElementById('cotProductResults')?.classList.add('d-none');
-  document.getElementById('cotPrecioSelector').value = '1';
   document.getElementById('cotTipoContado').checked = true;
   document.getElementById('cotTipoCredito').checked = false;
   document.getElementById('cotCreditoPlazo').value = '3';
@@ -236,9 +234,6 @@ async function buscarProductos(showAll) {
     if (state.productos.length === 0) {
       list.innerHTML = '<div class="pos-product-result-item text-muted">Sin resultados</div>';
     } else {
-      const precioIdx = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
-      const precioKey = 'precio' + precioIdx;
-
       const sorted = [...state.productos].sort((a, b) => {
         const stA = getStockSucursal(a) > 0 ? 0 : 1;
         const stB = getStockSucursal(b) > 0 ? 0 : 1;
@@ -246,7 +241,7 @@ async function buscarProductos(showAll) {
       });
 
       list.innerHTML = sorted.map(p => {
-        const precio = p[precioKey] || 0;
+        const precio = p.precioBase || 0;
         const stock = getStockSucursal(p);
         const sinStock = stock <= 0;
         const disabled = sinStock;
@@ -296,9 +291,7 @@ function agregarAlCart(prodId) {
     return;
   }
 
-  const precioIdx = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
-  const precioKey = 'precio' + precioIdx;
-  const precio = p[precioKey] || 0;
+  const precio = p.precioBase || 0;
 
   const existente = state.cart.find(d => d.idProducto === prodId);
   if (existente) {
@@ -387,12 +380,10 @@ function renderCart() {
 }
 
 function actualizarPreciosCart() {
-  const precioIdx = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
-  const precioKey = 'precio' + precioIdx;
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p && p[precioKey]) {
-      d.precioUnitario = p[precioKey];
+    if (p && p.precioBase > 0) {
+      d.precioUnitario = p.precioBase;
     }
   });
   renderCart();
@@ -433,7 +424,7 @@ async function guardarCotizacion() {
   const paqueteria = document.getElementById('cotPaqueteria')?.value?.trim() || null;
   const cobraEnvio = document.getElementById('cotCobraEnvio')?.checked || false;
   const montoEnvio = cobraEnvio ? (parseFloat(document.getElementById('cotMontoEnvio')?.value) || 0) : null;
-  const precioSeleccionado = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
+  const precioSeleccionado = 1;
   const tipoVenta = document.querySelector('input[name="cotTipoVenta"]:checked')?.value || 'CONTADO';
   const plazoMeses = tipoVenta === 'CREDITO' ? (parseInt(document.getElementById('cotCreditoPlazo')?.value) || null) : null;
   const porcentajeInteres = tipoVenta === 'CREDITO' ? (parseFloat(document.getElementById('cotCreditoInteres')?.value) || 0) : null;
@@ -486,7 +477,7 @@ async function verDetalle(id) {
       envioHtml +
       '<div class="col-md-4"><small class="text-muted">D\u00edas Vigencia</small><div>' + c.diasVigencia + '</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Expira</small><div>' + (c.fechaExpiracion ? new Date(c.fechaExpiracion).toLocaleDateString('es-MX') : '-') + '</div></div>' +
-      '<div class="col-md-4"><small class="text-muted">Precio</small><div>P' + (c.precioSeleccionado || 1) + '</div></div>' +
+      '<div class="col-md-4"><small class="text-muted">Precio</small><div>Precio base</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Estado</small><div>' + getEstadoBadge(c.estado) + '</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Tipo Venta</small><div>' + tipoBadge + '</div></div>';
 

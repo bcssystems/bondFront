@@ -24,8 +24,16 @@ function bindEvents() {
     }
   });
   document.getElementById('tableBody')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-detalle]');
-    if (btn) verDetalle(parseInt(btn.dataset.detalle));
+    const detalle = e.target.closest('[data-detalle]');
+    if (detalle) { verDetalle(parseInt(detalle.dataset.detalle)); return; }
+    const factura = e.target.closest('[data-factura]');
+    if (factura) { imprimirFactura(parseInt(factura.dataset.factura)); return; }
+    const cancelar = e.target.closest('[data-cancelar]');
+    if (cancelar) { solicitarCancelacion(parseInt(cancelar.dataset.cancelar)); return; }
+    const aprobar = e.target.closest('[data-aprobar]');
+    if (aprobar) { autorizarCancelacion(parseInt(aprobar.dataset.aprobar)); return; }
+    const rechazar = e.target.closest('[data-rechazar]');
+    if (rechazar) { rechazarCancelacion(parseInt(rechazar.dataset.rechazar)); return; }
   });
 }
 
@@ -81,20 +89,39 @@ async function buscar(page) {
       body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-receipt"></i><p>Sin resultados</p></div></td></tr>';
       document.getElementById('statsRow').classList.add('d-none');
     } else {
-      let totalMonto = 0, completadas = 0, canceladas = 0;
+      let totalMonto = 0, completadas = 0, canceladas = 0, pendientes = 0;
       body.innerHTML = ventas.map(v => {
         totalMonto += v.total || 0;
         if (v.estado === 'COMPLETADA') completadas++;
         else if (v.estado === 'CANCELADA') canceladas++;
+        else if (v.estado === 'SOLICITADA_CANCELACION') pendientes++;
+
+        const estadoBadge = v.estado === 'COMPLETADA' ? 'bg-success'
+          : v.estado === 'CANCELADA' ? 'bg-danger'
+          : v.estado === 'SOLICITADA_CANCELACION' ? 'bg-warning text-dark'
+          : 'bg-secondary';
+
+        let acciones = `
+          <button class="btn-action" style="color:var(--primary)" data-detalle="${v.idVenta}" title="Ver detalle"><i class="fas fa-eye"></i></button>
+          <button class="btn-action" style="color:var(--success)" data-factura="${v.idVenta}" title="Imprimir factura"><i class="fas fa-print"></i></button>`;
+
+        if (v.estado === 'COMPLETADA') {
+          acciones += `<button class="btn-action" style="color:var(--danger)" data-cancelar="${v.idVenta}" title="Solicitar cancelaci\u00f3n"><i class="fas fa-ban"></i></button>`;
+        } else if (v.estado === 'SOLICITADA_CANCELACION') {
+          acciones += `
+            <button class="btn-action" style="color:var(--success)" data-aprobar="${v.idVenta}" title="Autorizar cancelaci\u00f3n"><i class="fas fa-check"></i></button>
+            <button class="btn-action" style="color:var(--warning)" data-rechazar="${v.idVenta}" title="Rechazar cancelaci\u00f3n"><i class="fas fa-undo"></i></button>`;
+        }
+
         return `<tr class="${v.estado === 'CANCELADA' ? 'text-muted' : ''}">
           <td>${v.idVenta}</td>
           <td>${Utils.esc(v.sucursalNombre || '')}</td>
           <td>${Utils.esc(v.cajaNombre || '')}</td>
           <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
           <td class="fw-semibold">$${(v.total || 0).toFixed(2)}</td>
-          <td><span class="badge ${v.estado === 'COMPLETADA' ? 'bg-success' : v.estado === 'CANCELADA' ? 'bg-danger' : 'bg-warning'}">${v.estado}</span></td>
+          <td><span class="badge ${estadoBadge}">${v.estado}</span></td>
           <td>${Utils.formatDateTime(v.fecha)}</td>
-          <td><button class="btn btn-sm btn-outline-info" data-detalle="${v.idVenta}" title="Ver detalle"><i class="fas fa-eye"></i></button></td>
+          <td class="acciones-cell">${acciones}</td>
         </tr>`;
       }).join('');
 
@@ -143,6 +170,113 @@ function renderPagination() {
   });
 }
 
+async function solicitarCancelacion(id) {
+  const motivo = await Utils.promptInput('Motivo de la cancelaci\u00f3n', 'Escribe el motivo...');
+  if (!motivo) return;
+  try {
+    await API.post('/ventas/' + id + '/solicitar-cancelacion', { motivo });
+    Utils.showToast('Solicitud enviada. Espera autorizaci\u00f3n del administrador', 'success');
+    buscar(state.page);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function autorizarCancelacion(id) {
+  const ok = await Utils.confirm('Autorizar la cancelaci\u00f3n de la venta #' + id + '? Se revertir\u00e1 el stock.');
+  if (!ok) return;
+  try {
+    await API.post('/ventas/' + id + '/cancelar', {});
+    Utils.showToast('Venta cancelada exitosamente', 'success');
+    buscar(state.page);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function rechazarCancelacion(id) {
+  const ok = await Utils.confirm('Rechazar la solicitud de cancelaci\u00f3n del cliente #' + id + '? La venta queda completada.');
+  if (!ok) return;
+  try {
+    await API.post('/ventas/' + id + '/rechazar-cancelacion');
+    Utils.showToast('Solicitud rechazada', 'success');
+    buscar(state.page);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function imprimirFactura(id) {
+  try {
+    const venta = await API.get('/ventas/' + id);
+    imprimirTicket(venta);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function imprimirTicket(venta) {
+  const isCredit = venta.tipoVenta === 'CREDITO';
+  const subtotal = venta.subtotal || 0;
+  const descuento = venta.descuento || 0;
+  const total = venta.total || 0;
+  const detalles = (venta.detalles || []).map(d =>
+    `<tr>
+      <td>${Utils.esc(d.productoNombre || d.descripcion || '')}</td>
+      <td class="right">${d.cantidad}</td>
+      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
+      <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
+    </tr>`
+  ).join('');
+
+  const creditHtml = isCredit ? `<div class="section">
+    <div class="section-title">Pagar\u00e9 No. ${Utils.esc(venta.folioPagare || '—')}</div>
+    <table class="totals">
+      <tr><td>Plazo</td><td class="right">${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</td></tr>
+      <tr><td>Inter\u00e9s</td><td class="right">${venta.porcentajeInteres || 0}%</td></tr>
+    </table>
+  </div>` : '';
+
+  const html = `<html><head><meta charset="utf-8"><title>Factura #${venta.idVenta}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Consolas', monospace; font-size: 12px; color: #222; width: 302px; margin: 0 auto; padding: 12px 10px; }
+    h3 { text-align: center; letter-spacing: 2px; margin-bottom: 2px; }
+    h4 { text-align: center; font-size: 11px; margin-bottom: 4px; }
+    .center { text-align: center; }
+    .line { border-top: 1px dashed #222; margin: 6px 0; }
+    table { width: 100%; }
+    table.totals tr td { padding: 2px 0; }
+    .right { text-align: right; }
+    .section { margin-top: 8px; }
+    .section-title { font-weight: bold; text-decoration: underline; margin-bottom: 4px; }
+    #factura-caja:focus { outline: none; }
+    .total-final { font-size: 15px; font-weight: bold; }
+  </style></head><body>
+    <h3>BONDS</h3>
+    <h4>${Utils.esc(venta.sucursalNombre || '')}</h4>
+    <div class="center">${Utils.esc(venta.cajaNombre || '')}</div>
+    <div class="center">Fecha: ${Utils.formatDateTime(venta.fecha)}</div>
+    <div class="center">Venta #${venta.idVenta} - ${Utils.esc(venta.usuario || '')}</div>
+    <div class="line"></div>
+    <div>Cliente: ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
+    <div class="line"></div>
+    <table>
+      <thead><tr><th>Producto</th><th class="right">Cant</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead>
+      <tbody>${detalles}</tbody>
+    </table>
+    <div class="line"></div>
+    <table class="totals">
+      <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
+      ${descuento > 0 ? `<tr><td>Descuento</td><td class="right">-$${descuento.toFixed(2)}</td></tr>` : ''}
+      <tr><td class="total-final">TOTAL</td><td class="right total-final">$${total.toFixed(2)}</td></tr>
+    </table>
+    ${isCredit ? '<div class="line"></div>' + creditHtml : ''}
+    <div class="center" style="margin-top:8px">*** Gracias por su compra ***</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=380,height=600');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+  } else {
+    Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
+  }
+}
+
 async function verDetalle(id) {
   try {
     const venta = await API.get('/ventas/' + id);
@@ -155,6 +289,15 @@ async function verDetalle(id) {
       </tr>`
     ).join('');
 
+    const estadoBadge = venta.estado === 'COMPLETADA' ? 'bg-success'
+        : venta.estado === 'CANCELADA' ? 'bg-danger'
+        : venta.estado === 'SOLICITADA_CANCELACION' ? 'bg-warning text-dark'
+        : 'bg-secondary';
+
+    const motivoHtml = (venta.motivoCancelacion && (venta.estado === 'SOLICITADA_CANCELACION' || venta.estado === 'CANCELADA'))
+      ? `<div class="col-12"><strong>Motivo de cancelaci\u00f3n:</strong> ${Utils.esc(venta.motivoCancelacion)}${venta.solicitanteCancelacion ? ' <small class="text-muted">(solicitado por ' + Utils.esc(venta.solicitanteCancelacion) + ')</small>' : ''}</div>`
+      : '';
+
     document.getElementById('detalleBody').innerHTML =
       `<div class="small mb-3 p-2 bg-light rounded">
         <div class="row g-2">
@@ -163,9 +306,9 @@ async function verDetalle(id) {
           <div class="col-4"><strong>Total:</strong> <span class="fw-bold" style="color:var(--primary)">$${(venta.total || 0).toFixed(2)}</span></div>
           <div class="col-4"><strong>Subtotal:</strong> $${(venta.subtotal || 0).toFixed(2)}</div>
           <div class="col-4"><strong>Descuento:</strong> $${(venta.descuento || 0).toFixed(2)}</div>
-          <div class="col-4"><strong>Estado:</strong> <span class="badge ${venta.estado === 'COMPLETADA' ? 'bg-success' : venta.estado === 'CANCELADA' ? 'bg-danger' : 'bg-warning'}">${venta.estado}</span></div>
-        </div>
-      </div>
+          <div class="col-4"><strong>Estado:</strong> <span class="badge ${estadoBadge}">${venta.estado}</span></div>
+          ${venta.folioPagare ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare)}</div>` : ''}
+          ${motivoHtml}
       <table class="table table-sm table-custom mb-0">
         <thead><tr><th>Producto</th><th>Cant</th><th>P/U</th><th>Subtotal</th></tr></thead>
         <tbody>${detallesHtml || '<tr><td colspan="4" class="text-muted">Sin detalles</td></tr>'}</tbody>

@@ -2,35 +2,27 @@
   <div class="page-header">
     <div>
       <h4><i class="fas fa-cash-register me-2" style="color:var(--primary)"></i>Punto de Venta</h4>
-      <small class="text-muted">Selecciona una caja para comenzar</small>
+      <small class="text-muted">Selecciona la caja con la que vas a trabajar</small>
     </div>
   </div>
   <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="panel-card p-4 text-center">
-        <i class="fas fa-cash-register fa-4x mb-3" style="color:var(--primary);opacity:0.6"></i>
-        <h5 class="mb-3">Seleccionar Sucursal y Caja</h5>
-        <select class="form-select mb-2" id="posSucursalSelect">
-          <option value="">-- Selecciona una sucursal --</option>
-        </select>
-        <select class="form-select mb-3" id="posCajaSelect" disabled>
-          <option value="">-- Primero selecciona sucursal --</option>
-        </select>
-        <button class="btn btn-primary px-5 ripple" id="btnEntrarCaja" disabled>
-          <i class="fas fa-sign-in-alt me-1"></i> Entrar
-        </button>
-      </div>
+    <div class="col-md-10">
+      <div class="text-center text-muted small mb-3" id="posSelectorSucursalInfo">Cargando cajas...</div>
+      <div class="row g-3 justify-content-center" id="posCajaCards"></div>
     </div>
   </div>
 </div>
 
 <div id="pos-interface" class="d-none">
+  <div class="alert alert-warning py-2 d-none mb-2" id="posChicaBanner">
+    <i class="fas fa-coins me-1"></i> Caja chica activa: solo puedes registrar gastos, ingresos/retiros y corte de caja. Las ventas est&aacute;n deshabilitadas.
+  </div>
   <div class="pos-layout">
     <div class="pos-left">
       <div class="pos-panel pos-panel-client">
-        <label class="form-label fw-semibold mb-1">Cliente y Precio</label>
+        <label class="form-label fw-semibold mb-1">Cliente</label>
         <div class="row g-1 align-items-center">
-          <div class="col-6">
+          <div class="col-12">
             <div class="d-flex gap-1">
               <div class="flex-grow-1" id="pos-cliente-wrapper">
                 <select class="form-select form-select-sm" id="posCliente">
@@ -40,17 +32,6 @@
               <button class="btn btn-outline-primary btn-sm ripple" id="btnNuevoClientePOS" title="Nuevo Cliente">
                 <i class="fas fa-plus"></i>
               </button>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="d-flex gap-1 align-items-center">
-              <label class="form-label mb-0 text-nowrap" style="font-size:0.8rem">Precio:</label>
-              <select class="form-select form-select-sm" id="precioSelector">
-                <option value="1">P1</option>
-                <option value="2">P2</option>
-                <option value="3">P3</option>
-                <option value="4">P4</option>
-              </select>
             </div>
           </div>
         </div>
@@ -496,7 +477,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
       <div class="modal-header border-0">
-        <h5 class="modal-title fw-bold">Cancelar Venta</h5>
+        <h5 class="modal-title fw-bold">Solicitar Cancelaci&oacute;n de Venta</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -516,13 +497,13 @@
         </div>
         <div id="posCancelarEmpty" class="text-center py-4 d-none">
           <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
-          <p class="text-muted mb-0">No hay ventas recientes para cancelar</p>
+          <p class="text-muted mb-0">No hay ventas recientes para solicitar cancelaci&oacute;n</p>
         </div>
       </div>
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
         <button type="button" class="btn btn-danger btn-sm px-4 ripple d-none" id="btnConfirmarCancelarPOS">
-          <i class="fas fa-ban me-1"></i> Cancelar Venta Seleccionada
+          <i class="fas fa-ban me-1"></i> Solicitar Cancelaci&oacute;n
         </button>
       </div>
     </div>

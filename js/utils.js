@@ -347,6 +347,107 @@ const Utils = {
     else input.value = '';
   },
 
+  numeroALetras(value) {
+    if (value == null || isNaN(value)) return '';
+    const negativo = value < 0;
+    const entero = Math.trunc(Math.abs(value));
+    let dec = Math.round((Math.abs(value) - entero) * 100);
+    if (dec === 100) dec = 0;
+
+    const unidades = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+    const especiales = { 11: 'ONCE', 12: 'DOCE', 13: 'TRECE', 14: 'CATORCE', 15: 'QUINCE', 16: 'DIECIS\u00c9IS', 17: 'DIECISIETE', 18: 'DIECIOCHO', 19: 'DIECINUEVE' };
+    const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+    const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+    const decenaNum = (n) => {
+      if (n < 10) return unidades[n];
+      if (n < 20) return especiales[n] || 'DIEZ Y ' + unidades[n - 10];
+      if (n === 20) return 'VEINTE';
+      if (n < 30) return 'VEINTI' + unidades[n - 20];
+      const d = decenas[Math.floor(n / 10)];
+      const u = n % 10;
+      return u ? d + ' Y ' + unidades[u] : d;
+    };
+
+    const cientos = (n) => {
+      if (n === 0) return '';
+      if (n === 100) return 'CIEN';
+      const parts = [centenas[Math.floor(n / 100)]];
+      const r = n % 100;
+      if (r) parts.push(decenaNum(r));
+      return parts.join(' ');
+    };
+
+    const millones = Math.floor(entero / 1000000);
+    const miles = Math.floor((entero % 1000000) / 1000);
+    const rest = entero % 1000;
+
+    const partes = [];
+    if (millones === 1) partes.push('UN MILL\u00d3N');
+    else if (millones > 1) partes.push(cientos(millones) + ' MILLONES');
+    if (miles === 1) partes.push('MIL');
+    else if (miles > 1) partes.push(cientos(miles) + ' MIL');
+    if (rest) partes.push(cientos(rest));
+    const palabras = partes.length ? partes.join(' ') : 'CERO';
+
+    const centStr = String(dec).padStart(2, '0');
+    return (negativo ? 'MENOS ' : '') + palabras + ' PESOS ' + centStr + '/100 M.N.';
+  },
+
+  downloadXls(filename, sheetName, headers, rows) {
+    const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cell = (v) => {
+      const s = esc(v);
+      return '<ss:Cell><ss:Data ss:Type="String">' + s + '</ss:Data></ss:Cell>';
+    };
+    const headerCells = headers.map(h => '<ss:Cell><ss:Data ss:Type="String"><b>' + esc(h) + '</b></ss:Data></ss:Cell>').join('');
+    const bodyRows = rows.map(r =>
+      '<ss:Row>' + r.map(cell).join('') + '</ss:Row>'
+    ).join('\n');
+
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<?mso-application progid="Excel.Sheet"?>\n' +
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n' +
+      ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n' +
+      '<Worksheet ss:Name="' + esc(sheetName) + '">\n' +
+      '<Table>\n' +
+      '<ss:Row>' + headerCells + '</ss:Row>\n' +
+      bodyRows + '\n' +
+      '</Table>\n</Worksheet>\n</Workbook>';
+
+    const blob = new Blob(['\uFEFF' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
+
+  openPrintWindow(title, bodyHtml) {
+    const win = window.open('', '_blank', 'width=760,height=700');
+    if (!win) {
+      this.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
+      return;
+    }
+    const html = '<html><head><meta charset="utf-8"><title>' + this.esc(title) + '</title>' +
+      '<style>' +
+      'body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 20px; }' +
+      'h2 { text-align: center; margin-bottom: 4px; }' +
+      'h4 { text-align: center; margin-bottom: 16px; font-weight: normal; color: #555; }' +
+      'table { width: 100%; border-collapse: collapse; margin-top: 8px; }' +
+      'th, td { border: 1px solid #888; padding: 4px 6px; font-size: 11px; }' +
+      'th { background: #eee; }' +
+      'tr.total td { font-weight: bold; }' +
+      '.right { text-align: right; }' +
+      '.center { text-align: center; }' +
+      '@media print { body { margin: 0; } }' +
+      '</style></head><body>' + bodyHtml + '</body></html>';
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 300);
+  },
+
   showDialog(title, bodyHtml) {
     const existing = document.getElementById('dynamicDialog');
     if (existing) existing.remove();

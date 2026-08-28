@@ -48,7 +48,39 @@ const Dashboard = {
     const avatar = document.getElementById('topbar-avatar');
     if (avatar) avatar.textContent = (localStorage.getItem('username') || 'U').charAt(0).toUpperCase();
 
+    this.gateMenuByRole();
     this.bindEvents();
+    this.checkListaNegra();
+  },
+
+  gateMenuByRole() {
+    const rol = localStorage.getItem('userRol');
+    if (!rol) return;
+    const isAdmin = rol === 'ADMINISTRADOR' || rol === 'SISTEMAS';
+    document.querySelectorAll('[data-module="cancelaciones"]').forEach(el => {
+      const li = el.closest('li');
+      if (li) li.style.display = isAdmin ? '' : 'none';
+    });
+  },
+
+  async checkListaNegra() {
+    try {
+      const lista = await API.get('/clientes/lista-negra');
+      if (lista && lista.length > 0) {
+        Utils.showToast(lista.length + ' cliente(s) en lista negra', 'warning');
+        const welcome = document.querySelector('.welcome-container .welcome-card');
+        if (welcome) {
+          const alert = document.createElement('div');
+          alert.className = 'alert alert-warning d-flex align-items-center justify-content-between mb-3';
+          alert.style.maxWidth = '420px';
+          alert.style.margin = '0 auto 16px auto';
+          alert.innerHTML =
+            '<div><i class="fas fa-ban me-2"></i><strong>' + lista.length + '</strong> cliente(s) en lista negra</div>' +
+            '<a href="#" class="btn btn-sm btn-outline-danger" onclick="event.preventDefault();document.querySelector(\'[data-view=&quot;pages/clientes.html&quot;][data-module=&quot;clientes&quot;]\').click();">Ver</a>';
+          welcome.prepend(alert);
+        }
+      }
+    } catch (_) {}
   },
 
   bindEvents() {

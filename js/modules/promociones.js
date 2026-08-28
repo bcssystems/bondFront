@@ -311,8 +311,8 @@ async function cargarPreciosCombo() {
   for (let i = 0; i < state.comboProductos.length; i++) {
     try {
       const prod = await API.get('/productos/' + state.comboProductos[i].idProducto);
-      const price = prod.precio1 || 0;
-      state.comboProductos[i]._precio1 = price;
+      const price = prod.precioBase || 0;
+      state.comboProductos[i]._precioBase = price;
       const priceCell = document.getElementById('comboPrice_' + i);
       const subCell = document.getElementById('comboSubtotal_' + i);
       if (priceCell) priceCell.textContent = '$' + price.toFixed(2);
@@ -332,13 +332,13 @@ async function recalcularPrecios() {
     if (prodId) {
       try {
         const prod = await API.get('/productos/' + prodId);
-        const base = prod.precio1 || 0;
+        const base = prod.precioBase || 0;
         sugerido = base * (1 - desc / 100);
       } catch (_) {}
     }
   } else if (tipo === 'COMBO') {
     for (const p of state.comboProductos) {
-      const price = p._precio1 || 0;
+      const price = p._precioBase || 0;
       sugerido += price * p.cantidad;
     }
     sugerido = sugerido * (1 - desc / 100);

@@ -15,6 +15,8 @@ let state = {
   reservas: [],
   gastosPendientes: 0,
   idCotizacionActiva: null,
+  preciosClienteMap: {},
+  configs: {},
 };
 
 const REGIMENES_FISCALES = [
@@ -36,9 +38,9 @@ const REGIMENES_FISCALES = [
 
 export function init() {
   bindEvents();
+  cargarConfiguraciones();
   const lastCajaId = localStorage.getItem('lastCajaId');
-  const lastSucursalId = localStorage.getItem('lastSucursalId');
-  if (lastCajaId && lastSucursalId) {
+  if (lastCajaId) {
     autoEntrarCaja(lastCajaId);
   } else {
     mostrarSelectorCaja();
@@ -50,13 +52,6 @@ async function autoEntrarCaja(id) {
     const caja = await API.get('/cajas/' + id);
     if (caja.estado === 'ABIERTA') {
       state.caja = caja;
-      const selSuc = document.getElementById('posSucursalSelect');
-      const cajaSel = document.getElementById('posCajaSelect');
-      if (selSuc) selSuc.value = caja.idSucursal || '';
-      if (cajaSel) {
-        cajaSel.innerHTML = '<option value="' + caja.idCaja + '">' + Utils.esc(caja.nombre) + '</option>';
-        cajaSel.value = caja.idCaja;
-      }
       document.getElementById('pos-caja-selector')?.classList.add('d-none');
       iniciarPOS();
       actualizarCajaInfo();
@@ -69,8 +64,6 @@ async function autoEntrarCaja(id) {
 }
 
 function bindEvents() {
-  document.getElementById('btnEntrarCaja')?.addEventListener('click', entrarCaja);
-
   document.getElementById('btnCobrarPOS')?.addEventListener('click', cobrarVenta);
   document.getElementById('btnConfirmarCobroPOS')?.addEventListener('click', confirmarCobro);
   document.getElementById('btnConfirmarCreditoPOS')?.addEventListener('click', confirmarCreditoPOS);
@@ -137,10 +130,7 @@ function bindEvents() {
     });
   }
 
-  document.getElementById('precioSelector')?.addEventListener('change', () => {
-    actualizarPreciosCart();
-    recalcularTotales();
-  });
+  document.getElementById('posCliente')?.addEventListener('change', onPosClienteChange);
 }
 
 async function mostrarSelectorCaja() {
@@ -148,74 +138,59 @@ async function mostrarSelectorCaja() {
   detenerPollingCaja();
   document.getElementById('pos-caja-selector').classList.remove('d-none');
   document.getElementById('pos-interface').classList.add('d-none');
+  const cardsEl = document.getElementById('posCajaCards');
+  if (cardsEl) cardsEl.innerHTML = '';
   try {
-    state.sucursales = await API.get('/sucursales');
-    const selSuc = document.getElementById('posSucursalSelect');
-    selSuc.innerHTML = '<option value="">-- Selecciona una sucursal --</option>' +
-      state.sucursales.map(s => `<option value="${s.idSucursal}">${Utils.esc(s.nombre)}</option>`).join('');
-    selSuc.addEventListener('change', async () => {
-      const idSucursal = parseInt(selSuc.value);
-      const cajaSel = document.getElementById('posCajaSelect');
-      const entrarBtn = document.getElementById('btnEntrarCaja');
-      if (idSucursal) {
-        try {
-          state.cajas = await API.get('/cajas/sucursal/' + idSucursal);
-          cajaSel.innerHTML = '<option value="">-- Selecciona una caja --</option>' +
-            state.cajas.map(c => `<option value="${c.idCaja}">${Utils.esc(c.nombre)}</option>`).join('');
-          cajaSel.disabled = false;
-        } catch (_) {
-          cajaSel.innerHTML = '<option value="">Error al cargar cajas</option>';
-          cajaSel.disabled = true;
-        }
-      } else {
-        cajaSel.innerHTML = '<option value="">-- Primero selecciona sucursal --</option>';
-        cajaSel.disabled = true;
-        entrarBtn.disabled = true;
-      }
-    });
-
-    const lastCajaId = localStorage.getItem('lastCajaId');
-    const lastSucursalId = localStorage.getItem('lastSucursalId');
-
-    if (lastSucursalId) {
-      selSuc.value = lastSucursalId;
-      selSuc.dispatchEvent(new Event('change'));
-
-      // Wait briefly for cajas to load, then auto-select
-      setTimeout(() => {
-        const cajaSel = document.getElementById('posCajaSelect');
-        if (lastCajaId && cajaSel) {
-          const opt = cajaSel.querySelector(`option[value="${lastCajaId}"]`);
-          if (opt) {
-            cajaSel.value = lastCajaId;
-            document.getElementById('btnEntrarCaja').disabled = false;
-          }
-        }
-      }, 300);
+    const sucursales = await API.get('/sucursales');
+    const suc = sucursales && sucursales.length ? sucursales[0] : null;
+    const infoEl = document.getElementById('posSelectorSucursalInfo');
+    if (infoEl) {
+      infoEl.textContent = suc ? 'Sucursal: ' + (suc.nombre || 'Principal') : 'No hay sucursales registradas';
     }
+    const cajas = await API.get('/cajas');
+    const activas = cajas || [];
+    const normal = activas.find(c => (c.tipo || 'NORMAL') === 'NORMAL') || null;
+    const chica = activas.find(c => (c.tipo || 'NORMAL') === 'CHICA') || null;
 
-    document.getElementById('posCajaSelect').addEventListener('change', () => {
-      const id = parseInt(document.getElementById('posCajaSelect').value);
-      document.getElementById('btnEntrarCaja').disabled = !id;
-    });
+    const card = (c) => {
+      const esChica = (c.tipo || 'NORMAL') === 'CHICA';
+      const abierta = c.estado === 'ABIERTA';
+      return `
+        <div class="col-md-5">
+          <div class="panel-card p-4 text-center pos-caja-card" data-caja-id="${c.idCaja}" style="cursor:pointer">
+            <i class="fas ${esChica ? 'fa-coins' : 'fa-cash-register'} fa-3x mb-3" style="color:var(--primary);opacity:0.7"></i>
+            <h5 class="mb-1">${Utils.esc(c.nombre)}</h5>
+            <small class="text-muted d-block mb-3">${esChica ? 'Caja Chica' : 'Caja Normal'}</small>
+            <span class="badge ${abierta ? 'text-bg-success' : 'text-bg-secondary'}">${abierta ? 'Abierta' : 'Cerrada'}</span>
+          </div>
+        </div>`;
+    };
+
+    const html = [normal, chica].filter(Boolean).map(card).join('');
+    if (cardsEl) {
+      cardsEl.innerHTML = html || '<div class="col-12 text-center text-muted">No hay cajas registradas</div>';
+      cardsEl.querySelectorAll('.pos-caja-card').forEach(el => {
+        el.addEventListener('click', () => entrarCaja(parseInt(el.dataset.cajaId)));
+      });
+    }
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-async function entrarCaja() {
-  const id = parseInt(document.getElementById('posCajaSelect').value);
+async function entrarCaja(id) {
   if (!id) { Utils.showToast('Selecciona una caja', 'warning'); return; }
 
   try {
     state.caja = await API.get('/cajas/' + id);
     if (state.caja.estado === 'CERRADA') {
-      const saldo = await Utils.promptInput('Saldo Inicial', '¿Con cu\u00e1nto efectivo comienzas?', '0');
+      const esChica = (state.caja.tipo || 'NORMAL') === 'CHICA';
+      const defaultSaldo = esChica ? (parseFloat(state.configs.fondoCajaChica) || 0) : 0;
+      const saldo = await Utils.promptInput('Saldo Inicial', '\u00bfCon cu\u00e1nto efectivo comienzas?', String(defaultSaldo));
       if (saldo === null) return;
       await API.post('/cajas/' + id + '/apertura', { saldoInicial: parseFloat(saldo) || 0 });
       state.caja = await API.get('/cajas/' + id);
       Utils.showToast('Caja abierta exitosamente', 'success');
     }
     localStorage.setItem('lastCajaId', id);
-    localStorage.setItem('lastSucursalId', state.caja.idSucursal || '');
     iniciarPOS();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
@@ -235,11 +210,6 @@ async function cargarCotizacionDesdeLocalStorage() {
     const quote = JSON.parse(raw);
     localStorage.removeItem('cotizacionParaVenta');
     state.idCotizacionActiva = quote.idCotizacion || null;
-
-    if (quote.precioSeleccionado) {
-      const sel = document.getElementById('precioSelector');
-      if (sel) sel.value = quote.precioSeleccionado;
-    }
 
     if (quote.idCliente) {
       const sel = document.getElementById('posCliente');
@@ -274,7 +244,6 @@ async function cargarCotizacionDesdeLocalStorage() {
             cantidad: d.cantidad,
             precioUnitario: d.precioUnitario,
             stockActual: producto ? getStockSucursal(producto) : 0,
-            atributos: producto ? (producto.atributos || []) : [],
           });
         }
       }
@@ -292,7 +261,6 @@ async function cargarCotizacionDesdeLocalStorage() {
           cantidad: 1,
           precioUnitario: quote.montoEnvio,
           stockActual: 0,
-          atributos: [],
           descripcion: 'Env\u00edo' + (quote.paqueteria ? ' - ' + quote.paqueteria : ''),
         });
       }
@@ -324,6 +292,18 @@ async function iniciarPOS() {
   cargarEsperas();
   iniciarPollingCaja();
   actualizarCajaInfo();
+  actualizarControlesTipoCaja();
+}
+
+function actualizarControlesTipoCaja() {
+  const esChica = state.caja && (state.caja.tipo || 'NORMAL') === 'CHICA';
+  const banner = document.getElementById('posChicaBanner');
+  if (banner) banner.classList.toggle('d-none', !esChica);
+  if (!esChica) return;
+  ['btnCobrarPOS', 'btnEsperaPOS', 'btnVentaRapidaPOS', 'btnPromocionesPOS', 'posProductSearch', 'btnVerInventario'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
 }
 
 function actualizarCajaInfo() {
@@ -389,8 +369,6 @@ async function sincronizarCarritoDesdeServidor() {
   if (!state.caja?.idCaja) return;
 
   const reservasCaja = state.reservas.filter(r => r.idCaja === state.caja.idCaja);
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
-  const precioKey = 'precio' + precioIdx;
 
   const serverItems = reservasCaja.map(r => {
     const prod = state.productos.find(p => p.idProducto === r.idProducto);
@@ -399,8 +377,7 @@ async function sincronizarCarritoDesdeServidor() {
       nombre: r.productoNombre || (prod ? prod.nombre : 'Producto'),
       sku: r.productoSku || (prod ? prod.sku : ''),
       cantidad: r.cantidad,
-      precioUnitario: prod ? (prod[precioKey] || 0) : 0,
-      atributos: prod ? (prod.atributos || []) : [],
+      precioUnitario: prod ? (prod.precioBase || 0) : 0,
     };
   });
 
@@ -435,8 +412,6 @@ function iniciarPollingCaja() {
     const reservasCaja = state.reservas.filter(r => r.idCaja === state.caja.idCaja);
     const cartServerCount = state.cart.filter(d => d.sku !== 'VR' && d.sku !== 'ENVIO').length;
     if (reservasCaja.length !== cartServerCount) {
-      const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
-      const precioKey = 'precio' + precioIdx;
       const envioItems = state.cart.filter(d => d.sku === 'ENVIO');
       const nuevosCart = reservasCaja.map(r => {
         const existente = state.cart.find(d => d.idProducto === r.idProducto);
@@ -447,8 +422,7 @@ function iniciarPollingCaja() {
           nombre: r.productoNombre || (prod ? prod.nombre : 'Producto'),
           sku: r.productoSku || (prod ? prod.sku : ''),
           cantidad: r.cantidad,
-          precioUnitario: prod ? (prod[precioKey] || 0) : 0,
-          atributos: prod ? (prod.atributos || []) : [],
+          precioUnitario: prod ? (prod.precioBase || 0) : 0,
         };
       });
       state.cart = [...envioItems, ...nuevosCart];
@@ -484,6 +458,30 @@ function detenerPollingCaja() {
     clearInterval(state._pollInterval);
     state._pollInterval = null;
   }
+}
+
+async function cargarConfiguraciones() {
+  try {
+    const list = await API.get('/configuraciones');
+    state.configs = {};
+    (list || []).forEach(c => { if (c.clave) state.configs[c.clave] = c.valor; });
+  } catch (_) {}
+}
+
+async function onPosClienteChange() {
+  const id = parseInt(document.getElementById('posCliente').value) || null;
+  state.preciosClienteMap = {};
+  if (id) {
+    const cli = state.clientes.find(c => c.idCliente === id);
+    if (cli && cli.enListaNegra) {
+      Utils.showToast('Este cliente est\u00e1 en lista negra', 'warning');
+    }
+    try {
+      const precios = await API.get('/clientes/' + id + '/precios');
+      (precios || []).forEach(p => { state.preciosClienteMap[p.idProducto] = p.precio; });
+    } catch (_) {}
+  }
+  actualizarPreciosCart();
 }
 
 async function cargarClientesSelect(selectId) {
@@ -524,12 +522,13 @@ function cargarRegimenes(selectId) {
 }
 
 function actualizarPreciosCart() {
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
-  const precioKey = 'precio' + precioIdx;
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p && p[precioKey]) {
-      d.precioUnitario = p[precioKey];
+    const precioEspecial = state.preciosClienteMap[d.idProducto];
+    if (precioEspecial && precioEspecial > 0) {
+      d.precioUnitario = precioEspecial;
+    } else if (p && p.precioBase > 0) {
+      d.precioUnitario = p.precioBase;
     }
   });
   renderCart();
@@ -557,9 +556,6 @@ async function buscarProductos(showAll) {
     if (state.productos.length === 0) {
       list.innerHTML = '<div class="pos-product-result-item text-muted">Sin resultados</div>';
     } else {
-      const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
-      const precioKey = 'precio' + precioIdx;
-
       const sorted = [...state.productos].sort((a, b) => {
         const stA = getStockSucursal(a) > 0 ? 0 : 1;
         const stB = getStockSucursal(b) > 0 ? 0 : 1;
@@ -571,19 +567,17 @@ async function buscarProductos(showAll) {
         const sinStock = stock <= 0;
         const reservado = isReservadoPorOtraCaja(p.idProducto);
         const disabled = reservado || sinStock;
-        const attrHtml = p.atributos && p.atributos.length
-          ? '<div class="mt-1">' + p.atributos.map(a => `<span class="badge bg-secondary me-1" style="font-size:0.65rem">${Utils.esc(a.nombreAtributo)}: ${Utils.esc(a.nombreValor)}</span>`).join('') + '</div>'
-          : '';
+        const precioEspecial = state.preciosClienteMap[p.idProducto];
+        const precioMostrar = (precioEspecial && precioEspecial > 0) ? precioEspecial : (p.precioBase || 0);
         return `<div class="pos-product-result-item ${disabled ? 'text-muted opacity-50' : ''}" data-id="${p.idProducto}" data-sin-stock="${sinStock}">
           <div>
             <div class="fw-semibold small">${Utils.esc(p.nombre)}</div>
-            ${attrHtml}
             <small class="text-muted">SKU: ${Utils.esc(p.sku || '-')} | Stock: ${stock}</small>
             ${sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : ''}
             ${reservado ? '<br><small class="badge bg-warning text-dark mt-1"><i class="fas fa-lock me-1"></i>En uso en otra caja</small>' : ''}
           </div>
           <div class="text-end">
-            <div class="fw-bold" style="color:var(--primary)">$${(p[precioKey] || 0).toFixed(2)}</div>
+            <div class="fw-bold" style="color:var(--primary)">$${precioMostrar.toFixed(2)}${precioEspecial && precioEspecial > 0 ? ' <span class="badge bg-success" style="font-size:0.55rem">P.E.</span>' : ''}</div>
             <button class="btn btn-sm ${disabled ? 'btn-secondary' : 'btn-success'} pos-add-cart" data-id="${p.idProducto}" style="font-size:0.7rem" ${disabled ? 'disabled' : ''}>
               <i class="fas fa-cart-plus"></i>
             </button>
@@ -622,9 +616,8 @@ async function agregarAlCart(prodId) {
   const p = state.productos.find(x => x.idProducto === prodId);
   if (!p) return;
 
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
-  const precioKey = 'precio' + precioIdx;
-  const precio = p[precioKey] || 0;
+  const precioEspecial = state.preciosClienteMap[prodId];
+  const precio = (precioEspecial && precioEspecial > 0) ? precioEspecial : (p.precioBase || 0);
 
   const stockSuc = getStockSucursal(p);
   if (stockSuc <= 0) {
@@ -667,7 +660,6 @@ async function agregarAlCart(prodId) {
       cantidad: 1,
       precioUnitario: precio,
       stockActual: getStockSucursal(p),
-      atributos: p.atributos || [],
     });
   }
 
@@ -684,13 +676,9 @@ function renderCart() {
     tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>';
   } else {
     tbody.innerHTML = state.cart.map((d, i) => {
-      const attrHtml = d.atributos && d.atributos.length
-        ? '<div class="mt-1">' + d.atributos.map(a => '<span class="badge bg-secondary me-1" style="font-size:0.6rem">' + Utils.esc(a.nombreAtributo) + ': ' + Utils.esc(a.nombreValor) + '</span>').join('') + '</div>'
-        : '';
       return '<tr>' +
       '<td>' +
         '<div class="fw-semibold small">' + Utils.esc(d.nombre) + '</div>' +
-        attrHtml +
         '<small class="text-muted" style="font-size:0.65rem">' + (d.sku || '') + '</small>' +
       '</td>' +
       '<td>' +
@@ -801,18 +789,17 @@ function renderCart() {
 }
 
 function recalcularTotales() {
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
   let subtotal = 0;
   let descuento = 0;
 
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
     if (p) {
-      const precio1 = p.precio1 || 0;
+      const precioBase = p.precioBase || 0;
       const precioActual = d.precioUnitario;
       d.subtotal = d.cantidad * d.precioUnitario;
       subtotal += d.subtotal;
-      descuento += (precio1 - precioActual) * d.cantidad;
+      descuento += (precioBase - precioActual) * d.cantidad;
     } else {
       // VR items (temp negative IDs) always contribute to subtotal
       d.subtotal = d.cantidad * d.precioUnitario;
@@ -958,7 +945,6 @@ async function confirmarCobro() {
 
   const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
   const tipoVenta = document.querySelector('input[name="tipoVenta"]:checked')?.value || 'CONTADO';
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
@@ -989,7 +975,7 @@ async function confirmarCobro() {
     idCaja: state.caja.idCaja,
     idCliente: clienteId || null,
     tipoVenta: tipoVenta,
-    precioSeleccionado: precioIdx,
+    precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
     total: total,
@@ -1000,7 +986,7 @@ async function confirmarCobro() {
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
-      atributosText: d.sku === 'ENVIO' ? null : (d.atributos?.map(a => a.nombreAtributo + ': ' + a.nombreValor).join(', ') || null),
+      atributosText: null,
     })),
     pagos: pagos,
   };
@@ -1041,7 +1027,6 @@ async function confirmarCreditoPOS() {
 
   const total = parseFloat(document.getElementById('posCreditoTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
   const plazoMeses = parseInt(document.getElementById('posCreditoPlazo').value);
@@ -1051,7 +1036,7 @@ async function confirmarCreditoPOS() {
     idCaja: state.caja.idCaja,
     idCliente: clienteId,
     tipoVenta: 'CREDITO',
-    precioSeleccionado: precioIdx,
+    precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
     total: total,
@@ -1064,7 +1049,7 @@ async function confirmarCreditoPOS() {
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
-      atributosText: d.sku === 'ENVIO' ? null : (d.atributos?.map(a => a.nombreAtributo + ': ' + a.nombreValor).join(', ') || null),
+      atributosText: null,
     })),
     pagos: [],
   };
@@ -1099,7 +1084,6 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
   const isCredit = esCredito || venta.tipoVenta === 'CREDITO';
 
   const totalConInteres = isCredit ? (venta.total || 0) + ((venta.total || 0) * (porcentajeInteres || 0) / 100) : (venta.total || 0);
-  const pagoMensual = isCredit && plazoMeses > 0 ? totalConInteres / plazoMeses : 0;
 
   const detalleRows = (venta.detalles || []).map(d => {
     const dSubtotal = d.subtotal || (d.cantidad * d.precioUnitario) || 0;
@@ -1122,19 +1106,67 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       <td class="right">$${(p.monto || 0).toFixed(2)}</td>
     </tr>`).join('');
 
-  const creditTermsHtml = isCredit ? `
-  <div class="section">
-    <div class="section-title">Condiciones del Cr\u00e9dito</div>
-    <table class="totals">
-      <tr><td>Plazo</td><td class="right">${plazoMeses || '—'} meses</td></tr>
-      <tr><td>Inter\u00e9s</td><td class="right">${porcentajeInteres || 0}%</td></tr>
-      <tr><td>Total c/Inter\u00e9s</td><td class="right">$${totalConInteres.toFixed(2)}</td></tr>
-      <tr><td>Pago Mensual</td><td class="right">${plazoMeses || '—'} pago(s) de $${pagoMensual.toFixed(2)}</td></tr>
-      <tr><td>Cliente</td><td class="right">${Utils.esc(clienteInfo ? clienteInfo.nombre + ' ' + (clienteInfo.apellidoPaterno || '') : venta.clienteNombre || '')}</td></tr>
-    </table>
-  </div>
-  <div class="section" style="margin-top:24px">
-    <p style="font-size:11px">Firma de conformidad: _________________________________</p>
+  const titularPagare = state.configs['titularPagare'] || state.configs['descripcionEmpresa'] || '';
+  const lugarPagare = state.configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
+  const tasaMora = state.configs['tasaInteresMoraPagare'] || 0;
+  const montoLetras = Utils.numeroALetras(totalConInteres);
+
+  const cliPagare = (clienteInfo && clienteInfo.idCliente) ? clienteInfo : null;
+  const deudorNombre = cliPagare
+    ? [cliPagare.nombre || '', cliPagare.apellidoPaterno || '', cliPagare.apellidoMaterno || ''].filter(Boolean).join(' ')
+    : (venta.clienteNombre || '');
+  const deudorDireccion = cliPagare
+    ? [cliPagare.calle || '', cliPagare.numExt ? '#' + cliPagare.numExt : '', cliPagare.numInt ? 'Int ' + cliPagare.numInt : '', cliPagare.colonia ? 'Col. ' + cliPagare.colonia : ''].filter(Boolean).join(', ') || (cliPagare.direccion || '')
+    : '';
+  const deudorPoblacion = cliPagare
+    ? [cliPagare.municipio || '', cliPagare.estado || ''].filter(Boolean).join(', ') || (cliPagare.cp || '')
+    : '';
+  const deudorTel = cliPagare ? (cliPagare.telefono || '') : '';
+
+  const diaExpedicion = now.getDate();
+  const mesExpedicion = now.toLocaleDateString('es-MX', { month: 'long' });
+  const anioExpedicion = now.getFullYear();
+
+  const pagareHtml = isCredit ? `
+  <div class="pagare">
+    <h2 class="pagare-h2">PAGAR\u00c9</h2>
+    <div class="pagare-doc-no">FOLIO DE PAGAR\u00c9: ${Utils.esc(venta.folioPagare || '—')}</div>
+    <div class="pagare-lugar-fecha">
+      <span>LUGAR DE EXPEDICI\u00d3N: ${Utils.esc(lugarPagare)}</span>
+      <span>D\u00cdA: ${diaExpedicion}&nbsp;&nbsp; MES: ${Utils.esc(mesExpedicion)}&nbsp;&nbsp; A\u00d1O: ${anioExpedicion}</span>
+    </div>
+    <div class="pagare-bueno-por">
+      <span class="pagare-bueno-por-label">BUENO POR</span>
+      <span class="pagare-bueno-por-monto">$${totalConInteres.toFixed(2)}</span>
+    </div>
+    <p class="pagare-leyenda">
+      Debemos y pagar\u00e9(mos) incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este Pagar\u00e9 a la orden de:
+      <strong>${Utils.esc(titularPagare)}</strong>, el d\u00eda ${diaExpedicion} de ${Utils.esc(mesExpedicion)} de ${anioExpedicion}.
+      La cantidad de: <strong>$${totalConInteres.toFixed(2)} (${Utils.esc(montoLetras)})</strong>.
+    </p>
+    <p class="pagare-leyenda">
+      CANTIDAD QUE CORRESPONDE AL IMPORTE DE LAS MERCANCIAS QUE SE DETALLAN EN EL PEDIDO CUYO N\u00daMERO COINCIDE CON EL DE ESTE DOCUMENTO QUE HE RECIBIDO DE CONFORMIDAD,
+      SIENDO ESTE PAGAR\u00c9 MERCANTIL EN LOS T\u00c9RMINOS DE LOS ART\u00cdCULOS 170 Y 171 DE LA LEY GENERAL DE T\u00cdTULOS Y OPERACIONES DE CR\u00c9DITO; AS\u00cd MISMO,
+      DE CONFORMIDAD CON EL ART\u00cdCULO 11 Y DEM\u00c1S RELATIVOS DE LA LEY CITADA, ME OBLIGO INCONDICIONALMENTE A PAGAR EL IMPORTE DE ESTE PAGAR\u00c9 CUANDO
+      SEA ACEPTADO EN MI NOMBRE Y REPRESENTACI\u00d3N POR EMPLEADO O DEPENDIENTE DE MI NEGOCIO. EL PRESENTE PAGAR\u00c9 ES SIN PROTESTO; EN CASO DE MORA
+      AL PLAZO SE CUBRIR\u00c1N INTERESES A LA TASA DEL <strong>${tasaMora}%</strong> MENSUAL.
+    </p>
+    <div class="pagare-pie">
+      <div class="pagare-caja">
+        <div class="pagare-caja-titulo">DATOS DEL(LOS) DEUDOR(ES) / AVAL</div>
+        <table class="pagare-caja-tabla">
+          <tr><td class="pagare-caja-campo">Nombre:</td><td>${Utils.esc(deudorNombre) || '______________'}</td></tr>
+          <tr><td class="pagare-caja-campo">Direcci\u00f3n:</td><td>${Utils.esc(deudorDireccion) || '______________'}</td></tr>
+          <tr><td class="pagare-caja-campo">Poblaci\u00f3n:</td><td>${Utils.esc(deudorPoblacion) || '______________'}</td></tr>
+          <tr><td class="pagare-caja-campo">Tel.:</td><td>${Utils.esc(deudorTel) || '______________'}</td></tr>
+        </table>
+      </div>
+      <div class="pagare-firma-area">
+        <div class="pagare-linea-firma"></div>
+        <div class="pagare-firma-rol">FIRMA(S) DEL(LOS) DEUDOR(ES) / AVAL</div>
+        <div class="pagare-firma-nombre">${Utils.esc(deudorNombre)}</div>
+      </div>
+    </div>
   </div>` : '';
 
   const ticketStyle = `
@@ -1285,6 +1317,114 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       left: 0.25in;
       right: 0.25in;
     }
+    .pagare { margin-top: 8px; }
+    .pagare-h2 {
+      text-align: center;
+      font-size: 22pt;
+      font-weight: 800;
+      letter-spacing: 10px;
+      color: #1e3a5f;
+      text-transform: uppercase;
+      margin: 24px 0 2px;
+    }
+    .pagare-doc-no {
+      text-align: center;
+      font-size: 11pt;
+      color: #2563EB;
+      font-weight: 600;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #2563EB;
+      margin-bottom: 10px;
+    }
+    .pagare-lugar-fecha {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 9pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .pagare-bueno-por {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin: 12px 0;
+      font-size: 11pt;
+    }
+    .pagare-bueno-por-label { font-weight: 700; letter-spacing: 1px; }
+    .pagare-bueno-por-monto {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #1e3a5f;
+      border-bottom: 2px solid #334155;
+      min-width: 40%;
+      text-align: right;
+    }
+    .pagare-leyenda {
+      font-size: 10.5pt;
+      text-align: justify;
+      line-height: 1.6;
+      margin-bottom: 9px;
+    }
+    .pagare-pie {
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      margin-top: 26px;
+    }
+    .pagare-caja {
+      width: 62%;
+      border: 2px solid #334155;
+      border-radius: 4px;
+      padding: 8px 10px;
+    }
+    .pagare-caja-titulo {
+      text-align: center;
+      font-weight: 700;
+      font-size: 8pt;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .pagare-caja-tabla { width: 100%; border-collapse: collapse; }
+    .pagare-caja-tabla td {
+      font-size: 9pt;
+      padding: 3px 4px;
+      vertical-align: top;
+    }
+    .pagare-caja-campo {
+      width: 34%;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .pagare-firma-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      text-align: center;
+    }
+    .pagare-linea-firma { border-bottom: 1px solid #222; height: 30px; }
+    .pagare-firma-rol {
+      margin-top: 6px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .pagare-firma-nombre {
+      margin-top: 2px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
   `;
 
   function buildBodyHtml(copyIndex) {
@@ -1330,7 +1470,6 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       </table>
     </div>
     ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
-    ${creditTermsHtml}
     <div class="footer">
       <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
       Este documento es un comprobante interno de venta<br>
@@ -1343,6 +1482,12 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
   let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Factura - Venta #' + venta.idVenta + '</title>\n  <style>' + ticketStyle + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
     fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
+    if (isCredit) {
+      const pagareLabel = numCopies > 1
+        ? '<div class="copy-label">--- COPIA ' + (i + 1) + ' DE ' + numCopies + ' (PAGAR\u00c9) ---</div>'
+        : '';
+      fullHtml += '<div class="print-copy">' + pagareLabel + pagareHtml + '</div>';
+    }
   }
   fullHtml += '\n</body>\n</html>';
   printWindow.document.write(fullHtml);
@@ -1456,7 +1601,6 @@ async function ponerEnEspera() {
   if (state.cart.length === 0 || !state.caja) return;
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
-  const precioIdx = parseInt(document.getElementById('precioSelector')?.value) || 1;
   const tipoVenta = document.querySelector('input[name="tipoVenta"]:checked')?.value || 'CONTADO';
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
 
@@ -1464,7 +1608,7 @@ async function ponerEnEspera() {
     idCaja: state.caja.idCaja,
     idCliente: clienteId || null,
     tipoVenta: tipoVenta,
-    precioSeleccionado: precioIdx,
+    precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
     total: total,
@@ -1632,7 +1776,6 @@ async function realizarCorte() {
     const cortePrint = corteCreado || state.lastCortePreview;
     if (cortePrint) imprimirTicketCorte(cortePrint);
     localStorage.removeItem('lastCajaId');
-    localStorage.removeItem('lastSucursalId');
     state.caja = null;
     mostrarSelectorCaja();
   } catch (err) { Utils.showToast(err.message, 'error'); }
@@ -1662,9 +1805,9 @@ function renderEsperas() {
         <small class="text-muted">$${v.total.toFixed(2)}</small>
       </div>
       <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-success px-2 pos-reanudar-espera" data-id="${v.idVenta}" title="Reanudar" style="font-size:0.7rem">
-          <i class="fas fa-play"></i>
-        </button>
+        <button class="btn btn-sm btn-success px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="cobrar" title="Cobrar" style="font-size:0.65rem"><i class="fas fa-cash-register"></i> Cobrar</button>
+        <button class="btn btn-sm btn-primary px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="factura" title="Imprimir factura" style="font-size:0.65rem"><i class="fas fa-print"></i> Factura</button>
+        <button class="btn btn-sm btn-outline-primary px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="editar" title="Editar" style="font-size:0.65rem"><i class="fas fa-edit"></i> Editar</button>
         <button class="btn btn-sm btn-outline-danger px-2 pos-cancelar-espera" data-id="${v.idVenta}" title="Cancelar venta" style="font-size:0.7rem">
           <i class="fas fa-times"></i>
         </button>
@@ -1672,10 +1815,14 @@ function renderEsperas() {
     </div>`
   ).join('');
 
-  list.querySelectorAll('.pos-reanudar-espera').forEach(btn => {
+  list.querySelectorAll('.pos-espera-tab').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      reanudarEspera(parseInt(btn.dataset.id));
+      const accion = btn.dataset.accion;
+      const id = parseInt(btn.dataset.id);
+      if (accion === 'cobrar') cobrarEspera(id);
+      else if (accion === 'factura') imprimirEspera(id);
+      else if (accion === 'editar') reanudarEspera(id);
     });
   });
 
@@ -1739,6 +1886,19 @@ async function reanudarEspera(idVenta) {
     }
 
     document.getElementById('posProductSearch')?.focus();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cobrarEspera(idVenta) {
+  await reanudarEspera(idVenta);
+  document.getElementById('btnCobrarPOS')?.click();
+}
+
+async function imprimirEspera(idVenta) {
+  try {
+    const venta = await API.get('/ventas/' + idVenta);
+    imprimirTicketVenta(venta, venta.tipoVenta === 'CREDITO' ? 2 : 1, venta.tipoVenta === 'CREDITO',
+      venta.plazoMeses, venta.porcentajeInteres, state.clientes.find(c => c.idCliente === venta.idCliente));
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -1807,13 +1967,24 @@ async function abrirCancelarVentaModal() {
 
 async function confirmarCancelarVenta() {
   if (!state.cancelarSelectedId) { Utils.showToast('Selecciona una venta', 'warning'); return; }
-  const ok = await Utils.confirm('Confirmar Cancelaci\u00f3n',
-    '\u00bfEst\u00e1s seguro de cancelar la venta #' + state.cancelarSelectedId + '?');
+  const modalEl = document.getElementById('posCancelarModal');
+  const modal = bootstrap.Modal.getInstance(modalEl);
+  if (modal && modal._isShown) {
+    const ocultado = new Promise(resolve => modalEl.addEventListener('hidden.bs.modal', resolve, { once: true }));
+    modal.hide();
+    await ocultado;
+  }
+  const motivo = await Utils.promptInput('Solicitar cancelaci\u00f3n',
+    'Motivo de la cancelaci\u00f3n de la venta #' + state.cancelarSelectedId + ':');
+  if (!motivo) return;
+  const ok = await Utils.confirm('Se enviar\u00e1 una solicitud de cancelaci\u00f3n para la venta #' + state.cancelarSelectedId +
+    '. Un administrador deber\u00e1 autorizarla para revertir el stock.',
+    'Solicitar cancelaci\u00f3n');
   if (!ok) return;
   try {
-    await API.post('/ventas/' + state.cancelarSelectedId + '/cancelar', {});
-    Utils.showToast('Venta #' + state.cancelarSelectedId + ' cancelada', 'success');
-    bootstrap.Modal.getInstance(document.getElementById('posCancelarModal'))?.hide();
+    await API.post('/ventas/' + state.cancelarSelectedId + '/solicitar-cancelacion', { motivo });
+    Utils.showToast('Solicitud de cancelaci\u00f3n enviada. Espera la autorizaci\u00f3n del administrador', 'success');
+    state.cancelarSelectedId = null;
     await cargarEsperas();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
@@ -1876,7 +2047,6 @@ async function abandonarCaja() {
   window.__cajaAbierta = false;
   detenerPollingCaja();
   localStorage.removeItem('lastCajaId');
-  localStorage.removeItem('lastSucursalId');
   await limpiarCart();
   state.caja = null;
   state.reanudandoVentaId = null;
@@ -2136,7 +2306,7 @@ async function aplicarCombo(comboId) {
       const prod = allProductos.find(p => p.idProducto === det.idProducto);
       if (!prod) { skipped++; continue; }
 
-      const unitPrice = (prod.precio1 || 0) * (1 - desc / 100);
+      const unitPrice = (prod.precioBase || 0) * (1 - desc / 100);
       const stockSuc = state.caja?.idSucursal
         ? (prod.inventarioSucursales || []).find(i => i.idSucursal === state.caja.idSucursal)?.stock || 0
         : prod.stockActual || 0;

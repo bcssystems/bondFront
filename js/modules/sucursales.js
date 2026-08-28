@@ -6,7 +6,6 @@ export function init() {
 }
 
 function bindEvents() {
-  document.getElementById('btnNuevaSucursal')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarSucursal')?.addEventListener('click', guardarSucursal);
   document.getElementById('tableSucursalesBody')?.addEventListener('click', handleTableClick);
 }
