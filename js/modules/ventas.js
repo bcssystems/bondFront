@@ -43,7 +43,7 @@ export function init() {
   if (lastCajaId) {
     autoEntrarCaja(lastCajaId);
   } else {
-    mostrarSelectorCaja();
+    entrarCajaNormal();
   }
 }
 
@@ -52,15 +52,38 @@ async function autoEntrarCaja(id) {
     const caja = await API.get('/cajas/' + id);
     if (caja.estado === 'ABIERTA') {
       state.caja = caja;
-      document.getElementById('pos-caja-selector')?.classList.add('d-none');
       iniciarPOS();
       actualizarCajaInfo();
-    } else {
-      mostrarSelectorCaja();
+      return;
     }
-  } catch (_) {
-    mostrarSelectorCaja();
-  }
+  } catch (_) {}
+  entrarCajaNormal();
+}
+
+async function entrarCajaNormal() {
+  try {
+    const cajas = await API.get('/cajas');
+    const caja = (cajas || []).find(c => (c.tipo || 'NORMAL') === 'NORMAL');
+    if (!caja) {
+      Utils.showToast('No hay caja normal configurada', 'error');
+      return;
+    }
+    if (caja.estado === 'ABIERTA') {
+      state.caja = caja;
+      localStorage.setItem('lastCajaId', caja.idCaja);
+      iniciarPOS();
+      actualizarCajaInfo();
+      return;
+    }
+    const saldo = await Utils.promptInput('Abrir Caja', '\u00bfCon cu\u00e1nto efectivo comienzas?', '0');
+    if (saldo === null) return;
+    await API.post('/cajas/' + caja.idCaja + '/apertura', { saldoInicial: parseFloat(saldo) || 0 });
+    state.caja = await API.get('/cajas/' + caja.idCaja);
+    localStorage.setItem('lastCajaId', caja.idCaja);
+    Utils.showToast('Caja abierta exitosamente', 'success');
+    iniciarPOS();
+    actualizarCajaInfo();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 function bindEvents() {
@@ -134,65 +157,7 @@ function bindEvents() {
 }
 
 async function mostrarSelectorCaja() {
-  window.__cajaAbierta = false;
-  detenerPollingCaja();
-  document.getElementById('pos-caja-selector').classList.remove('d-none');
-  document.getElementById('pos-interface').classList.add('d-none');
-  const cardsEl = document.getElementById('posCajaCards');
-  if (cardsEl) cardsEl.innerHTML = '';
-  try {
-    const sucursales = await API.get('/sucursales');
-    const suc = sucursales && sucursales.length ? sucursales[0] : null;
-    const infoEl = document.getElementById('posSelectorSucursalInfo');
-    if (infoEl) {
-      infoEl.textContent = suc ? 'Sucursal: ' + (suc.nombre || 'Principal') : 'No hay sucursales registradas';
-    }
-    const cajas = await API.get('/cajas');
-    const activas = cajas || [];
-    const normal = activas.find(c => (c.tipo || 'NORMAL') === 'NORMAL') || null;
-    const chica = activas.find(c => (c.tipo || 'NORMAL') === 'CHICA') || null;
-
-    const card = (c) => {
-      const esChica = (c.tipo || 'NORMAL') === 'CHICA';
-      const abierta = c.estado === 'ABIERTA';
-      return `
-        <div class="col-md-5">
-          <div class="panel-card p-4 text-center pos-caja-card" data-caja-id="${c.idCaja}" style="cursor:pointer">
-            <i class="fas ${esChica ? 'fa-coins' : 'fa-cash-register'} fa-3x mb-3" style="color:var(--primary);opacity:0.7"></i>
-            <h5 class="mb-1">${Utils.esc(c.nombre)}</h5>
-            <small class="text-muted d-block mb-3">${esChica ? 'Caja Chica' : 'Caja Normal'}</small>
-            <span class="badge ${abierta ? 'text-bg-success' : 'text-bg-secondary'}">${abierta ? 'Abierta' : 'Cerrada'}</span>
-          </div>
-        </div>`;
-    };
-
-    const html = [normal, chica].filter(Boolean).map(card).join('');
-    if (cardsEl) {
-      cardsEl.innerHTML = html || '<div class="col-12 text-center text-muted">No hay cajas registradas</div>';
-      cardsEl.querySelectorAll('.pos-caja-card').forEach(el => {
-        el.addEventListener('click', () => entrarCaja(parseInt(el.dataset.cajaId)));
-      });
-    }
-  } catch (err) { Utils.showToast(err.message, 'error'); }
-}
-
-async function entrarCaja(id) {
-  if (!id) { Utils.showToast('Selecciona una caja', 'warning'); return; }
-
-  try {
-    state.caja = await API.get('/cajas/' + id);
-    if (state.caja.estado === 'CERRADA') {
-      const esChica = (state.caja.tipo || 'NORMAL') === 'CHICA';
-      const defaultSaldo = esChica ? (parseFloat(state.configs.fondoCajaChica) || 0) : 0;
-      const saldo = await Utils.promptInput('Saldo Inicial', '\u00bfCon cu\u00e1nto efectivo comienzas?', String(defaultSaldo));
-      if (saldo === null) return;
-      await API.post('/cajas/' + id + '/apertura', { saldoInicial: parseFloat(saldo) || 0 });
-      state.caja = await API.get('/cajas/' + id);
-      Utils.showToast('Caja abierta exitosamente', 'success');
-    }
-    localStorage.setItem('lastCajaId', id);
-    iniciarPOS();
-  } catch (err) { Utils.showToast(err.message, 'error'); }
+  entrarCajaNormal();
 }
 
 async function cargarProductosParaVenta() {
@@ -274,7 +239,6 @@ async function cargarCotizacionDesdeLocalStorage() {
 }
 
 async function iniciarPOS() {
-  document.getElementById('pos-caja-selector').classList.add('d-none');
   document.getElementById('pos-interface').classList.remove('d-none');
   state.reanudandoVentaId = null;
   window.__cajaAbierta = true;
@@ -292,18 +256,6 @@ async function iniciarPOS() {
   cargarEsperas();
   iniciarPollingCaja();
   actualizarCajaInfo();
-  actualizarControlesTipoCaja();
-}
-
-function actualizarControlesTipoCaja() {
-  const esChica = state.caja && (state.caja.tipo || 'NORMAL') === 'CHICA';
-  const banner = document.getElementById('posChicaBanner');
-  if (banner) banner.classList.toggle('d-none', !esChica);
-  if (!esChica) return;
-  ['btnCobrarPOS', 'btnEsperaPOS', 'btnVentaRapidaPOS', 'btnPromocionesPOS', 'posProductSearch', 'btnVerInventario'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = true;
-  });
 }
 
 function actualizarCajaInfo() {
@@ -1670,6 +1622,18 @@ async function previewCorte() {
     const corte = await API.get('/cajas/' + state.caja.idCaja + '/corte-preview');
     state.lastCortePreview = corte;
     const body = document.getElementById('posCorteBody');
+    const gastos = corte.gastos || [];
+    const gastosHtml = (gastos.length === 0)
+      ? '<div class="text-center text-muted small py-2">No hubo gastos en este per\u00edodo</div>'
+      : '<div class="table-responsive"><table class="table table-sm table-custom mb-0">' +
+        '<thead><tr><th>Descripci\u00f3n</th><th class="text-end">Monto</th><th>Solicit\u00f3</th><th>Estado</th></tr></thead>' +
+        '<tbody>' + gastos.map(g => {
+          const badge = { 'PENDIENTE': 'badge-warning', 'AUTORIZADO': 'badge-active', 'RECHAZADO': 'badge-inactive' }[g.estado] || 'badge-inactive';
+          return '<tr><td>' + Utils.esc(g.descripcion) + '</td>' +
+            '<td class="text-end"><strong>$' + g.monto.toFixed(2) + '</strong></td>' +
+            '<td>' + Utils.esc(g.usuario || '-') + '</td>' +
+            '<td><span class="badge-status ' + badge + '">' + g.estado + '</span></td></tr>';
+        }).join('') + '</tbody></table></div>';
     body.innerHTML = `
       <div class="row g-3">
         <div class="col-4"><div class="panel-card p-3 text-center">
@@ -1700,7 +1664,14 @@ async function previewCorte() {
           <small class="text-muted">Egresos</small>
           <div class="text-danger fw-semibold">-$${corte.totalEgresos.toFixed(2)}</div>
         </div></div>
+        <div class="col-12"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Total Gastos</small>
+          <div class="text-danger fw-semibold">-$${corte.totalGastos.toFixed(2)}</div>
+        </div></div>
       </div>
+      <hr>
+      <h6 class="fw-semibold"><i class="fas fa-money-bill-wave me-1" style="color:var(--primary)"></i>Gastos del per\u00edodo</h6>
+      ${gastosHtml}
       ${corte.detallePagos && corte.detallePagos.length > 0 ? `
       <hr>
       <h6 class="fw-semibold">Desglose por Forma de Pago</h6>
@@ -1777,7 +1748,7 @@ async function realizarCorte() {
     if (cortePrint) imprimirTicketCorte(cortePrint);
     localStorage.removeItem('lastCajaId');
     state.caja = null;
-    mostrarSelectorCaja();
+    entrarCajaNormal();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -2051,7 +2022,7 @@ async function abandonarCaja() {
   state.caja = null;
   state.reanudandoVentaId = null;
   state.esperaVentas = [];
-  mostrarSelectorCaja();
+  entrarCajaNormal();
 }
 
 function abrirClienteModal() {
