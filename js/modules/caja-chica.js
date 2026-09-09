@@ -4,13 +4,11 @@ let state = {
   gastos: [],
   filtroMov: 'todos',
   filtroGasto: 'todos',
-  fondo: 0,
-  isAdmin: false
+  fondo: 0
 };
 
 export function init() {
   bindEvents();
-  state.isAdmin = (localStorage.getItem('userRol') === 'ADMINISTRADOR' || localStorage.getItem('userRol') === 'SISTEMAS');
   cargarFondo();
   cargarCajaChica();
 }
@@ -159,9 +157,9 @@ function renderGastos() {
     <td><span class="badge-status ${badgeClass || 'badge-inactive'}">${g.estado}</span></td>
     <td>${Utils.formatDateTime(g.fechaCreacion)}</td>
     <td class="acciones-cell">
-      ${g.estado === 'PENDIENTE' && state.isAdmin ? `
-        <button class="btn-action" style="color:var(--success)" data-id="${g.idGasto}" data-action="autorizar" title="Autorizar"><i class="fas fa-check"></i></button>
-        <button class="btn-action" style="color:var(--danger)" data-id="${g.idGasto}" data-action="rechazar" title="Rechazar"><i class="fas fa-times"></i></button>
+      ${g.estado === 'PENDIENTE' ? `
+        ${Utils.hasPermiso('GASTOS_AUTORIZAR') ? `<button class="btn-action" style="color:var(--success)" data-id="${g.idGasto}" data-action="autorizar" title="Autorizar"><i class="fas fa-check"></i></button>` : ''}
+        ${Utils.hasPermiso('GASTOS_RECHAZAR') ? `<button class="btn-action" style="color:var(--danger)" data-id="${g.idGasto}" data-action="rechazar" title="Rechazar"><i class="fas fa-times"></i></button>` : ''}
       ` : '-'}
     </td>
   </tr>`).join('');

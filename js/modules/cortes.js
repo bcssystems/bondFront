@@ -110,7 +110,7 @@ async function verCorte(id) {
     const corte = await API.get('/cortes/' + id);
     state.currentCorte = corte;
     document.getElementById('corteDetailId').textContent = corte.idCorte;
-    const isAdmin = ['ADMINISTRADOR', 'SISTEMAS'].includes(localStorage.getItem('userRol'));
+    const isAdmin = Utils.hasPermiso('CORTES_EDITAR');
 
     const body = document.getElementById('corteDetailBody');
     body.innerHTML = `

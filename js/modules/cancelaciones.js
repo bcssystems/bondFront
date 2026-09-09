@@ -1,11 +1,10 @@
 let state = { pendientes: [] };
 
 export function init() {
-  const rol = localStorage.getItem('userRol') || '';
-  if (rol !== 'ADMINISTRADOR' && rol !== 'SISTEMAS') {
+  if (!Utils.hasPermiso('CANCELACIONES_VER')) {
     const body = document.getElementById('cancelacionesBody');
     if (body) {
-      body.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-lock"></i><p>Acceso restringido. Solo administradores pueden autorizar cancelaciones.</p></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-lock"></i><p>Acceso restringido.</p></div></td></tr>';
     }
     return;
   }
@@ -66,8 +65,9 @@ function renderTable() {
     <td>${Utils.formatDateTime(v.fechaSolicitudCancelacion)}</td>
     <td class="acciones-cell">
       <button class="btn-action" style="color:var(--primary)" data-action="ver" data-id="${v.idVenta}" title="Ver detalle"><i class="fas fa-eye"></i></button>
+      ${Utils.hasPermiso('CANCELACIONES_AUTORIZAR') ? `
       <button class="btn-action" style="color:var(--success)" data-action="autorizar" data-id="${v.idVenta}" title="Autorizar cancelaci\u00f3n"><i class="fas fa-check"></i></button>
-      <button class="btn-action" style="color:var(--warning)" data-action="rechazar" data-id="${v.idVenta}" title="Rechazar cancelaci\u00f3n"><i class="fas fa-undo"></i></button>
+      <button class="btn-action" style="color:var(--warning)" data-action="rechazar" data-id="${v.idVenta}" title="Rechazar cancelaci\u00f3n"><i class="fas fa-undo"></i></button>` : ''}
     </td>
   </tr>`).join('');
 }

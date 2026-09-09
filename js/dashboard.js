@@ -34,6 +34,12 @@ function initSidebarDelegation() {
     if (link) {
       e.preventDefault();
 
+      const permiso = link.getAttribute('data-permiso');
+      if (permiso && !Utils.hasPermiso(permiso)) {
+        Utils.showToast('No tienes permiso para este módulo', 'warning');
+        return;
+      }
+
       const ruta = link.getAttribute('data-view');
       const modulo = link.getAttribute('data-module');
 
@@ -61,18 +67,31 @@ const Dashboard = {
     const avatar = document.getElementById('topbar-avatar');
     if (avatar) avatar.textContent = (localStorage.getItem('username') || 'U').charAt(0).toUpperCase();
 
-    this.gateMenuByRole();
+    const versionEl = document.getElementById('sidebar-version');
+    if (versionEl && typeof PAYLOAD_VERSION !== 'undefined') versionEl.textContent = 'v' + PAYLOAD_VERSION;
+
+    this.filtrarSidebar();
     this.bindEvents();
     this.checkListaNegra();
   },
 
-  gateMenuByRole() {
-    const rol = localStorage.getItem('userRol');
-    if (!rol) return;
-    const isAdmin = rol === 'ADMINISTRADOR' || rol === 'SISTEMAS';
-    document.querySelectorAll('[data-module="cancelaciones"]').forEach(el => {
-      const li = el.closest('li');
-      if (li) li.style.display = isAdmin ? '' : 'none';
+  filtrarSidebar() {
+    const links = document.querySelectorAll('.sidebar-item[data-permiso]');
+    links.forEach(link => {
+      const permiso = link.dataset.permiso;
+      if (permiso && !Utils.hasPermiso(permiso)) {
+        const li = link.closest('li');
+        if (li) li.style.display = 'none';
+      }
+    });
+
+    document.querySelectorAll('ul.sidebar-submenu').forEach(sub => {
+      const hasVisible = Array.from(sub.children).some(li => li.style.display !== 'none');
+      if (!hasVisible) {
+        const toggle = document.querySelector('[data-target="' + sub.id + '"]');
+        const parentLi = toggle ? toggle.closest('li') : null;
+        if (parentLi) parentLi.style.display = 'none';
+      }
     });
   },
 

@@ -1,4 +1,30 @@
 const Utils = {
+  getPermisos() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return [];
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return Array.isArray(payload.permisos) ? payload.permisos : [];
+    } catch (_) {
+      return [];
+    }
+  },
+
+  getRolActual() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return '';
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.rol || '';
+    } catch (_) {
+      return '';
+    }
+  },
+
+  hasPermiso(permiso) {
+    return this.getPermisos().includes(permiso);
+  },
+
   showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;

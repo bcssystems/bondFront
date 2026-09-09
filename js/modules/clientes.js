@@ -208,7 +208,7 @@ function abrirAccionesCliente(anchor, id) {
   const c = (state.data || []).find(x => x.idCliente === id);
   const items = [
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
-    { icon: 'fa-dollar-sign', text: 'Precios especiales', color: 'var(--success)', onClick: () => abrirModalPrecios(id) },
+    ...(Utils.hasPermiso('PRECIOS_CLIENTE_VER') ? [{ icon: 'fa-dollar-sign', text: 'Precios especiales', color: 'var(--success)', onClick: () => abrirModalPrecios(id) }] : []),
     { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
     { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
   ];
@@ -728,12 +728,22 @@ async function subirIne() {
 }
 
 let preciosClienteProductos = [];
+let preciosClienteEditable = false;
 
 async function abrirModalPrecios(id) {
+  if (!Utils.hasPermiso('PRECIOS_CLIENTE_VER')) {
+    Utils.showToast('No tienes permiso para ver precios', 'warning');
+    return;
+  }
+  preciosClienteEditable = Utils.hasPermiso('PRECIOS_CLIENTE_EDITAR');
   state.preciosClienteId = id;
   const c = state.data.find(x => x.idCliente === id);
   document.getElementById('preciosClienteNombre').textContent = c ? '- ' + c.nombre + ' ' + (c.apellidoPaterno || '') : '';
   document.getElementById('tablePreciosClienteBody').innerHTML = '<tr><td colspan="3"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>Cargando...</p></div></td></tr>';
+  document.getElementById('btnAgregarPrecioCliente').classList.toggle('d-none', !preciosClienteEditable);
+  document.getElementById('preciosClienteProducto').disabled = !preciosClienteEditable;
+  document.getElementById('preciosClienteMonto').disabled = !preciosClienteEditable;
+  document.getElementById('btnGuardarPreciosCliente').classList.toggle('d-none', !preciosClienteEditable);
   new bootstrap.Modal(document.getElementById('preciosClienteModal')).show();
   try {
     const precios = await API.get('/clientes/' + id + '/precios');
@@ -761,8 +771,8 @@ function renderPreciosCliente(precios) {
   }
   body.innerHTML = precios.map(p => `<tr data-id="${p.idPrecioCliente}">
     <td>${Utils.esc(p.sku)} - ${Utils.esc(p.productoNombre)}</td>
-    <td><input type="number" class="form-control form-control-sm precio-valor" value="${p.precio}" step="0.01" min="0"></td>
-    <td><button class="btn-action" style="color:var(--danger)" data-action="quitar-precio"><i class="fas fa-times"></i></button></td>
+    <td><input type="number" class="form-control form-control-sm precio-valor" value="${p.precio}" step="0.01" min="0" ${preciosClienteEditable ? '' : 'disabled'}></td>
+    <td>${preciosClienteEditable ? `<button class="btn-action" style="color:var(--danger)" data-action="quitar-precio"><i class="fas fa-times"></i></button>` : ''}</td>
   </tr>`).join('');
 }
 
@@ -793,6 +803,10 @@ function quitarFilaPrecio(e) {
 }
 
 async function guardarPreciosCliente() {
+  if (!Utils.hasPermiso('PRECIOS_CLIENTE_EDITAR')) {
+    Utils.showToast('No tienes permiso para editar precios', 'warning');
+    return;
+  }
   const id = state.preciosClienteId;
   const filas = document.querySelectorAll('#tablePreciosClienteBody tr[data-id], #tablePreciosClienteBody tr[data-nuevo]');
   const precios = [];
