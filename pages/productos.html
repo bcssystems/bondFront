@@ -30,47 +30,45 @@
   </div>
 </div>
 
-<div class="d-flex gap-1 mb-3 align-items-center">
-  <select class="form-select form-select-sm" id="exportSucursalSelect" style="width:auto;min-width:190px;max-width:230px">
-    <option value="">Todas las sucursales</option>
-  </select>
-  <button class="btn btn-outline-success btn-sm ripple" id="btnExportarInventario">
-    <i class="fas fa-file-csv me-1"></i> CSV
-  </button>
-  <button class="btn btn-outline-success btn-sm ripple" id="btnExportarInventarioExcel">
-    <i class="fas fa-file-excel me-1"></i> Excel
-  </button>
-  <button class="btn btn-outline-danger btn-sm ripple" id="btnExportarInventarioPdf">
-    <i class="fas fa-file-pdf me-1"></i> PDF
-  </button>
-</div>
-
-<div class="modal fade" id="costoSucursalModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-0">
-        <h5 class="modal-title fw-bold">Costo por Sucursal</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="costoSucursalBody">
-        <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <div class="filter-bar filter-bar-2cols">
-    <div class="input-group">
+<div class="filter-bar">
+    <div class="input-group" style="flex: 1 1 100%">
       <span class="input-group-text"><i class="fas fa-search"></i></span>
       <input type="text" class="form-control" id="searchProducto" placeholder="Buscar por SKU o nombre...">
     </div>
-    <div class="d-flex gap-2">
-      <select class="form-select sucursal-select" id="filterSucursal">
-        <option value="">Todas las sucursales</option>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <select class="form-select" id="filterCategoria" style="width:auto;min-width:160px;max-width:200px">
+        <option value="">Todas las categor&iacute;as</option>
       </select>
       <button class="btn btn-outline-secondary btn-sm text-nowrap" id="btnToggleInactivos">
         <i class="fas fa-eye me-1"></i> Mostrar inactivos
       </button>
+      <span class="badge sucursal-principal-badge" id="sucursalPrincipalBadge" style="background:var(--primary-light);color:var(--primary);font-size:.8rem;padding:.5rem .75rem">
+        <i class="fas fa-building me-1"></i> Sucursal principal
+      </span>
+      <div class="vr mx-1 d-none d-md-block"></div>
+      <button class="btn btn-sm btn-outline-success ripple text-nowrap" id="btnExportarInventario">
+        <i class="fas fa-file-csv me-1"></i> CSV
+      </button>
+      <button class="btn btn-sm btn-outline-success ripple text-nowrap" id="btnExportarInventarioExcel">
+        <i class="fas fa-file-excel me-1"></i> Excel
+      </button>
+      <button class="btn btn-sm btn-outline-danger ripple text-nowrap" id="btnExportarInventarioPdf">
+        <i class="fas fa-file-pdf me-1"></i> PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="modal fade" id="costoSucursalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold">Costo por Sucursal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="costoSucursalBody">
+          <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -80,7 +78,9 @@
         <span class="th-img"></span>
         <span class="th-sku">SKU</span>
         <span class="th-nombre">Nombre</span>
+        <span class="th-unidad">Unidad</span>
         <span class="th-stock">Stock</span>
+        <span class="th-rollos">Rollos</span>
         <span class="th-precio">Precio</span>
         <span class="th-estado">Estado</span>
         <span class="th-acciones"></span>
@@ -126,6 +126,12 @@
               <input type="number" class="form-control" id="productoCosto" step="0.01" min="0">
             </div>
             <div class="col-md-4">
+              <label class="form-label">Categor&iacute;a</label>
+              <select class="form-select" id="productoCategoria">
+                <option value="">Sin categor&iacute;a</option>
+              </select>
+            </div>
+            <div class="col-md-4">
               <label class="form-label">Unidad de medida</label>
               <select class="form-select" id="productoUnidadMedida">
                 <option value="UNIDAD">UNIDAD</option>
@@ -161,8 +167,25 @@
   </div>
 </div>
 
+<div class="modal fade" id="productoDetalleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-eye me-2" style="color:var(--primary)"></i>Detalle del Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="productoDetalleBody">
+        <div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="multimediaModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
       <div class="modal-header border-0">
         <h5 class="modal-title fw-bold">
@@ -172,32 +195,21 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="row g-4">
-          <div class="col-lg-7">
-            <h6 class="fw-semibold mb-3"><i class="fas fa-photo-video me-1"></i> Multimedia</h6>
-            <div class="media-gallery mb-3" id="multimediaGallery"></div>
-            <div class="mt-2 d-flex gap-2">
-              <label class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-upload me-1"></i> Subir archivo
-                <input type="file" id="multimediaInput" accept="image/*,video/*" style="display:none">
-              </label>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCamara">
-                <i class="fas fa-camera me-1"></i> C&aacute;mara
-              </button>
-              <small class="text-muted ms-2">Im&aacute;genes o videos</small>
-            </div>
-          </div>
-          <div class="col-lg-5">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h6 class="fw-semibold mb-0"><i class="fas fa-warehouse me-1"></i> Stock por Sucursal</h6>
-              <button class="btn btn-sm btn-outline-primary" id="btnRegistrarMovimiento">
-                <i class="fas fa-plus"></i> Movimiento
-              </button>
-            </div>
-            <div id="stockSucursalList"></div>
-            <hr>
-            <h6 class="fw-semibold mb-2"><i class="fas fa-history me-1"></i> &Uacute;ltimos Movimientos</h6>
-            <div id="movimientosRecientes"></div>
+        <h6 class="fw-semibold mb-3"><i class="fas fa-photo-video me-1"></i> Multimedia
+          <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="btnVerInventarioActual" title="Ir a inventario"><i class="fas fa-warehouse me-1"></i> Inventario</button>
+        </h6>
+        <div class="media-gallery mb-3" id="multimediaGallery"></div>
+        <div class="mt-2 d-flex gap-2">
+          <label class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-upload me-1"></i> Subir archivo
+            <input type="file" id="multimediaInput" accept="image/*,video/*" style="display:none">
+          </label>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCamara">
+            <i class="fas fa-camera me-1"></i> C&aacute;mara
+          </button>
+          <small class="text-muted ms-2">Im&aacute;genes o videos</small>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -222,9 +234,6 @@
     </div>
   </div>
 </div>
-    </div>
-  </div>
-</div>
 
 <div class="modal fade" id="movimientoModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -241,8 +250,6 @@
             <select class="form-select" id="movimientoTipo">
               <option value="ENTRADA">Entrada</option>
               <option value="SALIDA">Salida</option>
-              <option value="AJUSTE">Ajuste</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
             </select>
           </div>
           <div class="mb-3">
@@ -254,22 +261,6 @@
             <select class="form-select sucursal-stock-select" id="movimientoSucursal">
               <option value="">Global</option>
             </select>
-          </div>
-          <div id="movimientoTransferenciaGroup" class="mb-3 d-none">
-            <div class="row g-2">
-              <div class="col-6">
-                <label class="form-label">Sucursal Origen</label>
-                <select class="form-select sucursal-stock-select" id="movimientoSucursalOrigen">
-                  <option value="">Seleccionar...</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label">Sucursal Destino</label>
-                <select class="form-select sucursal-stock-select" id="movimientoSucursalDestino">
-                  <option value="">Seleccionar...</option>
-                </select>
-              </div>
-            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Referencia</label>
@@ -288,3 +279,39 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="movimientosFullModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold mb-0 flex-grow-1"><i class="fas fa-history me-2" style="color:var(--primary)"></i>Kardex del Producto <span id="movimientosFullProducto" class="text-muted fs-6"></span></h5>
+        <button class="btn btn-sm btn-outline-primary" id="btnRegistrarMovimientoFull">
+          <i class="fas fa-plus me-1"></i> Movimiento
+        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+          <input type="date" class="form-control form-control-sm" id="movFullFechaInicio" style="width:auto">
+          <input type="date" class="form-control form-control-sm" id="movFullFechaFin" style="width:auto">
+          <button class="btn btn-sm btn-outline-primary" id="btnMovFullFiltrar">Filtrar</button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnMovFullLimpiar">Limpiar</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Stock</th><th>Sucursal</th><th>Referencia</th><th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody id="movimientosFullBody">
+              <tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2" id="paginationMovimientosFull"></div>
+      </div>
+    </div>
+  </div>
+</div>
+

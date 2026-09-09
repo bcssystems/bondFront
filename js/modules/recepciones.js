@@ -100,16 +100,26 @@ function renderTable() {
     <td>${Utils.esc(r.usuario) || '-'}</td>
     <td>${Utils.formatDateTime(r.fechaRecepcion)}</td>
     <td class="acciones-cell">
-      <button class="btn-action" style="color:var(--primary)" data-id="${r.idRecepcion}" data-action="ver" title="Ver"><i class="fas fa-eye"></i></button>
-      <button class="btn-action" style="color:var(--success)" data-id="${r.idRecepcion}" data-action="imprimir" title="Imprimir factura"><i class="fas fa-print"></i></button>
-      <button class="btn-action" style="color:var(--danger)" data-id="${r.idRecepcion}" data-action="eliminar" title="Eliminar"><i class="fas fa-trash"></i></button>
+      <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${r.idRecepcion}" data-action="menu" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
   </tr>`).join('');
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    Utils.abrirMenuKebab(kebab, [
+      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verRecepcion(id) },
+      { icon: 'fa-print', text: 'Imprimir factura', color: 'var(--success)', onClick: () => imprimirFactura(id) },
+      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => eliminarRecepcion(id) },
+    ]);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
+  e.preventDefault();
   const id = parseInt(btn.dataset.id);
   const action = btn.dataset.action;
   if (action === 'ver') verRecepcion(id);

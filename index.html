@@ -193,7 +193,19 @@
                   <span>Recepciones</span>
                 </a>
               </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/movimientos-inventario.html" data-module="movimientos-inventario">
+                  <i class="fas fa-arrows-rotate sidebar-item-icon"></i>
+                  <span>Movimientos de Inventario</span>
+                </a>
+              </li>
             </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item" data-view="pages/clientes.html" data-module="clientes">
+              <i class="fas fa-address-book sidebar-item-icon"></i>
+              <span>Clientes</span>
+            </a>
           </li>
           <li>
             <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-catalogos">
@@ -206,12 +218,6 @@
                 <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/sucursales.html" data-module="sucursales">
                   <i class="fas fa-store sidebar-item-icon"></i>
                   <span>Sucursales</span>
-                </a>
-              </li>
-              <li>
-                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/clientes.html" data-module="clientes">
-                  <i class="fas fa-address-book sidebar-item-icon"></i>
-                  <span>Clientes</span>
                 </a>
               </li>
               <li>
@@ -325,6 +331,17 @@
   <!-- SCRIPTS -->
   <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="assets/fontawesome/js/all.min.js"></script>
+  <script src="js/version.js"></script>
+  <script>
+    document.querySelectorAll('link[rel="stylesheet"][href^="css/"]').forEach(function(l) {
+      if (typeof PAYLOAD_VERSION !== 'undefined') l.href = l.href.split('?')[0] + '?v=' + PAYLOAD_VERSION;
+    });
+    document.querySelectorAll('script[src^="js/"]').forEach(function(s) {
+      if (s.src.indexOf('version.js') === -1 && typeof PAYLOAD_VERSION !== 'undefined') {
+        s.src = s.src.split('?')[0] + '?v=' + PAYLOAD_VERSION;
+      }
+    });
+  </script>
   <script src="js/api.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/dashboard.js"></script>

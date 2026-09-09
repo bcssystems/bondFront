@@ -3,12 +3,14 @@ let state = {
   selectedClienteId: null,
   creditos: [],
   movimientos: [],
+  tiposPago: [],
   filtro: 'pendientes',
 };
 
 export function init() {
   bindEvents();
   cargarClientesCredito();
+  cargarTiposPago();
 }
 
 function bindEvents() {
@@ -37,6 +39,23 @@ function bindEvents() {
       montoInput.value = parseFloat(saldoText) || 0;
     }
   });
+}
+
+async function cargarTiposPago() {
+  try {
+    state.tiposPago = await API.get('/tipos-pago');
+    const optsHtml = state.tiposPago
+      .map(t => `<option value="${t.idTipoPago}">${Utils.esc(t.nombre)}</option>`)
+      .join('');
+    document.getElementById('abonoTipoPago').innerHTML = optsHtml;
+    document.getElementById('abonoGeneralTipoPago').innerHTML = optsHtml;
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function tipoPagoPorDefecto() {
+  if (state.tiposPago.length === 0) return '';
+  const porNombre = state.tiposPago.find(t => t.nombre.toUpperCase() === 'EFECTIVO');
+  return porNombre ? porNombre.idTipoPago : state.tiposPago[0].idTipoPago;
 }
 
 async function cargarClientesCredito() {
@@ -109,7 +128,7 @@ function renderCreditos() {
   if (!tbody) return;
 
   if (!state.creditos || state.creditos.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr\u00e9ditos</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr\u00e9ditos</p></div></td></tr>';
     return;
   }
 
@@ -122,7 +141,6 @@ function renderCreditos() {
       <td>#${c.folioVenta || c.idVenta}</td>
       <td class="text-end">$${(c.montoOriginal || 0).toFixed(2)}</td>
       <td class="text-end fw-semibold">$${(c.saldoPendiente || 0).toFixed(2)}</td>
-      <td>${c.plazoMeses || '-'} meses</td>
       <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
       <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
       <td>
@@ -164,9 +182,12 @@ function renderMovimientos() {
     const tipoLabel = m.tipo === 'CARGO' ? 'Cargo' :
       m.tipo === 'ABONO' ? 'Abono' :
       m.tipo === 'LIQUIDACION' ? 'Liquidaci\u00f3n' : m.tipo;
+    const metodoPago = (m.tipo === 'ABONO' || m.tipo === 'LIQUIDACION') && m.metodoPago
+      ? Utils.esc(m.metodoPago) : '&mdash;';
     return `<tr>
       <td style="font-size:0.8rem">${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
       <td><span class="${tipoClass} fw-semibold">${tipoLabel}</span></td>
+      <td style="font-size:0.8rem">${metodoPago}</td>
       <td class="text-end ${tipoClass}">$${(m.monto || 0).toFixed(2)}</td>
       <td class="text-end">$${(m.saldoNuevo || 0).toFixed(2)}</td>
     </tr>`;
@@ -195,6 +216,7 @@ function abrirAbonoModal(idCredito) {
   document.getElementById('abonoSaldoPendiente').textContent = '$' + (credito.saldoPendiente || 0).toFixed(2);
   document.getElementById('abonoMonto').value = '';
   document.getElementById('abonoTipo').value = 'PARCIAL';
+  document.getElementById('abonoTipoPago').value = tipoPagoPorDefecto();
   document.getElementById('btnConfirmarAbono').dataset.creditoId = idCredito;
   new bootstrap.Modal(document.getElementById('abonoModal')).show();
 }
@@ -221,7 +243,6 @@ async function imprimirEstadoCuenta() {
     <td>${c.idCredito}</td>
     <td>#${c.folio || ''}</td>
     <td class="right">$${(c.montoOriginal || 0).toFixed(2)}</td>
-    <td class="right">$${(c.porcentajeInteres || 0)}%</td>
     <td class="right">$${(c.saldoPendiente || 0).toFixed(2)}</td>
   </tr>`).join('');
 
@@ -230,9 +251,12 @@ async function imprimirEstadoCuenta() {
     const tipo = m.tipo === 'CARGO' ? 'Cargo'
       : m.tipo === 'ABONO' ? 'Abono'
       : m.tipo === 'LIQUIDACION' ? 'Liquidaci\u00f3n' : m.tipo;
+    const pago = (m.tipo === 'ABONO' || m.tipo === 'LIQUIDACION') && m.metodoPago
+      ? Utils.esc(m.metodoPago) : '-';
     return `<tr>
       <td>${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
       <td>${tipo}</td>
+      <td>${pago}</td>
       <td class="right">${m.tipo === 'CARGO' ? '' : '-'}$${(m.monto || 0).toFixed(2)}</td>
       <td class="right">$${(m.saldoNuevo || 0).toFixed(2)}</td>
     </tr>`;
@@ -267,14 +291,14 @@ async function imprimirEstadoCuenta() {
     <div class="line"></div>
     <h3 style="text-align:left;font-size:12px">Cr\u00e9ditos</h3>
     <table>
-      <thead><tr><th>#</th><th>Pagar\u00e9</th><th class="right">Original</th><th class="right">Inter\u00e9s</th><th class="right">Pendiente</th></tr></thead>
+      <thead><tr><th>#</th><th>Pagar\u00e9</th><th class="right">Original</th><th class="right">Pendiente</th></tr></thead>
       <tbody>${creditosRows}</tbody>
     </table>
     <div class="line"></div>
     <h3 style="text-align:left;font-size:12px">Movimientos</h3>
     <table>
-      <thead><tr><th>Fecha</th><th>Tipo</th><th class="right">Monto</th><th class="right">Saldo</th></tr></thead>
-      <tbody>${movRows || '<tr><td colspan="4" style="text-align:center">Sin movimientos</td></tr>'}</tbody>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Pago</th><th class="right">Monto</th><th class="right">Saldo</th></tr></thead>
+      <tbody>${movRows || '<tr><td colspan="5" style="text-align:center">Sin movimientos</td></tr>'}</tbody>
     </table>
     <div class="firma">____________________________________<br>Firma del cliente</div>
   </body></html>`;
@@ -295,14 +319,19 @@ async function confirmarAbono() {
   const idCredito = parseInt(document.getElementById('btnConfirmarAbono').dataset.creditoId);
   const monto = parseFloat(document.getElementById('abonoMonto').value);
   const tipo = document.getElementById('abonoTipo').value;
+  const idTipoPago = parseInt(document.getElementById('abonoTipoPago').value);
 
   if (!monto || monto <= 0) {
     Utils.showToast('Ingresa un monto v\u00e1lido', 'warning');
     return;
   }
+  if (!idTipoPago) {
+    Utils.showToast('Selecciona un m\u00e9todo de pago', 'warning');
+    return;
+  }
 
   try {
-    await API.post('/creditos/abonos', { idCredito, monto, tipo });
+    await API.post('/creditos/abonos', { idCredito, monto, tipo, idTipoPago });
     Utils.showToast('Abono registrado exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoModal'))?.hide();
     await Promise.all([
@@ -323,19 +352,25 @@ function abrirAbonoGeneralModal() {
 
   document.getElementById('abonoGeneralDeudaTotal').textContent = '$' + deudaTotal.toFixed(2);
   document.getElementById('abonoGeneralMonto').value = '';
+  document.getElementById('abonoGeneralTipoPago').value = tipoPagoPorDefecto();
   new bootstrap.Modal(document.getElementById('abonoGeneralModal')).show();
 }
 
 async function confirmarAbonoGeneral() {
   const monto = parseFloat(document.getElementById('abonoGeneralMonto').value);
+  const idTipoPago = parseInt(document.getElementById('abonoGeneralTipoPago').value);
 
   if (!monto || monto <= 0) {
     Utils.showToast('Ingresa un monto v\u00e1lido', 'warning');
     return;
   }
+  if (!idTipoPago) {
+    Utils.showToast('Selecciona un m\u00e9todo de pago', 'warning');
+    return;
+  }
 
   try {
-    await API.post('/creditos/abonos/general', { idCliente: state.selectedClienteId, monto });
+    await API.post('/creditos/abonos/general', { idCliente: state.selectedClienteId, monto, idTipoPago });
     Utils.showToast('Abono general registrado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoGeneralModal'))?.hide();
     await Promise.all([

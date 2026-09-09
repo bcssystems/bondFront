@@ -51,7 +51,9 @@ const Utils = {
       document.body.style.removeProperty('overflow');
       document.body.style.removeProperty('padding-right');
 
-      const resp = await fetch(ruta);
+      const cacheV = (typeof PAYLOAD_VERSION !== 'undefined') ? '?v=' + PAYLOAD_VERSION : '';
+      const fetchUrl = ruta + (cacheV ? (ruta.includes('?') ? '&' : '?') + cacheV.replace('?', '') : '');
+      const resp = await fetch(fetchUrl);
       if (!resp.ok) throw new Error('Error al cargar la vista');
       const html = await resp.text();
       document.getElementById('main-content').innerHTML = html;
@@ -70,7 +72,7 @@ const Utils = {
           mainContent.dataset.currentModule = modulo;
         }
         try {
-          const module = await import('./modules/' + modulo + '.js');
+          const module = await import('./modules/' + modulo + '.js' + (cacheV ? cacheV : ''));
           if (module && typeof module.init === 'function') {
             module.init();
           }
@@ -226,6 +228,16 @@ const Utils = {
     return d.innerHTML;
   },
 
+  formatUnidad(cantidad, unidadMedida) {
+    const u = (unidadMedida || 'UNIDAD').toUpperCase();
+    if (u === 'METRO') return cantidad.toFixed(2) + ' m';
+    if (u === 'ROLLO') return cantidad + ' rollo' + (cantidad !== 1 ? 's' : '');
+    if (u === 'PIEZA') return cantidad + ' pza' + (cantidad !== 1 ? 's' : '');
+    if (u === 'KG' || u === 'KILOGRAMO') return cantidad.toFixed(2) + ' kg';
+    if (u === 'LITRO') return cantidad.toFixed(2) + ' L';
+    return cantidad + ' ' + (u === 'UNIDAD' ? 'pzs' : u.toLowerCase());
+  },
+
   getStockClass(stock, min) {
     if (min && stock <= min) return 'stock-bajo';
     if (min && stock <= min * 1.5) return 'stock-medio';
@@ -287,6 +299,7 @@ const Utils = {
           select.value = opt.value;
           input.value = opt.text;
           dropdown.classList.remove('show');
+          wrapper.classList.remove('show');
           select.dispatchEvent(new Event('change', { bubbles: true }));
         });
         dropdown.appendChild(div);
@@ -299,24 +312,27 @@ const Utils = {
     input.addEventListener('focus', function () {
       buildOptions(input.value);
       dropdown.classList.add('show');
+      wrapper.classList.add('show');
     });
 
     input.addEventListener('input', Utils.debounce(function () {
       buildOptions(input.value);
       dropdown.classList.add('show');
+      wrapper.classList.add('show');
     }, 200));
 
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') dropdown.classList.remove('show');
+      if (e.key === 'Escape') { dropdown.classList.remove('show'); wrapper.classList.remove('show'); }
       if (e.key === 'Enter') {
         const first = dropdown.querySelector('.searchable-option:not(.disabled)');
         if (first) first.click();
         dropdown.classList.remove('show');
+        wrapper.classList.remove('show');
       }
     });
 
     input.addEventListener('blur', function () {
-      setTimeout(function () { dropdown.classList.remove('show'); }, 200);
+      setTimeout(function () { dropdown.classList.remove('show'); wrapper.classList.remove('show'); }, 200);
     });
 
     const opt = select.options[select.selectedIndex];
@@ -473,5 +489,73 @@ const Utils = {
         input.value = '';
       }
     });
+  },
+
+  abrirMenuKebab(anchor, items) {
+    this.cerrarMenuKebab();
+    if (!anchor || !anchor.getBoundingClientRect || !items || items.length === 0) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'kebab-menu-float';
+    menu.style.visibility = 'hidden';
+    document.body.appendChild(menu);
+
+    items.forEach(function (it) {
+      const el = document.createElement('div');
+      el.className = 'kebab-menu-item' + (it.danger ? ' kebab-danger' : '');
+      const colorStyle = it.color ? ' style="color:' + it.color + '"' : '';
+      el.innerHTML = '<i class="fas ' + it.icon + '"' + colorStyle + '></i><span>' + it.text + '</span>';
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        Utils.cerrarMenuKebab();
+        if (typeof it.onClick === 'function') it.onClick();
+      });
+      menu.appendChild(el);
+    });
+
+    const MENU_W = 210;
+    const menuH = menu.offsetHeight || (items.length * 34 + 10);
+    const r = anchor.getBoundingClientRect();
+    const viewW = window.innerWidth;
+    const viewH = window.innerHeight;
+
+    let left = r.right - MENU_W;
+    if (left < 8) left = Math.max(8, r.left);
+    if (left + MENU_W > viewW - 8) left = viewW - MENU_W - 8;
+
+    let top = r.bottom + 4;
+    if (top + menuH > viewH - 8) top = r.top - menuH - 4;
+    if (top < 8) top = 8;
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    menu.style.visibility = 'visible';
+    menu.classList.add('show');
+
+    const close = function () {
+      if (menu.parentNode) menu.parentNode.removeChild(menu);
+      document.removeEventListener('click', onDoc, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize, true);
+    };
+    const onDoc = function (e) {
+      if (!menu.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) close();
+    };
+    const onKey = function (e) {
+      if (e.key === 'Escape') close();
+    };
+    const onScroll = function () { close(); };
+    const onResize = function () { close(); };
+
+    document.addEventListener('click', onDoc, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize, true);
+  },
+
+  cerrarMenuKebab() {
+    const menu = document.querySelector('.kebab-menu-float');
+    if (menu && menu.parentNode) menu.parentNode.removeChild(menu);
   },
 };

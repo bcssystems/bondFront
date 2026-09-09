@@ -19,23 +19,36 @@
 
   <div class="panel-card overflow-hidden">
     <div class="table-responsive">
-      <table class="table table-custom mb-0">
+      <table class="table table-custom mb-0" style="white-space:nowrap;min-width:100%">
         <thead>
           <tr>
             <th>Nombre</th>
             <th>Apellidos</th>
             <th>Tel&eacute;fono</th>
+            <th>Pa&iacute;s</th>
+            <th>WhatsApp</th>
+            <th>Empresa</th>
             <th>RFC</th>
             <th>R&eacute;gimen Fiscal</th>
-            <th>Direcci&oacute;n</th>
+            <th>Contacto</th>
+            <th>Dir. Entrega</th>
+            <th>C.P.</th>
+            <th>Estado</th>
+            <th>Municipio</th>
+            <th>Colonia</th>
+            <th>Calle / N&uacute;m.</th>
             <th>Cr&eacute;dito</th>
+            <th>L&iacute;mite</th>
             <th>Saldo</th>
             <th>Lista negra</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+            <th>Registro</th>
             <th style="width:170px"></th>
           </tr>
         </thead>
         <tbody id="tableClientesBody">
-          <tr><td colspan="10"><div class="empty-state"><i class="fas fa-address-book"></i><p>Cargando...</p></div></td></tr>
+          <tr><td colspan="23"><div class="empty-state"><i class="fas fa-address-book"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -69,7 +82,12 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Tel&eacute;fono <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="clienteTelefono" required maxlength="30">
+              <div class="input-group">
+                <span class="input-group-text" id="clientePrefijo">+52</span>
+                <input type="text" class="form-control" id="clienteLada" placeholder="Lada" maxlength="3" style="max-width:80px" aria-label="Lada">
+                <input type="text" class="form-control" id="clienteTelefono" required maxlength="10" placeholder="N&uacute;mero" aria-label="N&uacute;mero">
+              </div>
+              <div class="form-text">Lada (3 d&iacute;gitos) + n&uacute;mero local</div>
             </div>
             <div class="col-md-6">
               <label class="form-label">Pa&iacute;s</label>
@@ -84,7 +102,7 @@
               <input type="text" class="form-control" id="clienteEmpresa" maxlength="200">
             </div>
             <div class="col-md-6">
-              <label class="form-label">R&eacute;gimen Fiscal <span class="text-danger">*</span></label>
+              <label class="form-label">R&eacute;gimen Fiscal</label>
               <select class="form-select" id="clienteRegimen"></select>
             </div>
             <div class="col-12"><hr class="my-1"></div>
@@ -93,7 +111,7 @@
               <input type="text" class="form-control" id="clienteRfc" maxlength="13" placeholder="Persona moral: 12 car&aacute;cteres">
             </div>
             <div class="col-md-6">
-              <label class="form-label">Representante legal</label>
+              <label class="form-label">Contacto</label>
               <input type="text" class="form-control" id="clienteRepresentanteLegal" maxlength="200">
             </div>
             <div class="col-12">

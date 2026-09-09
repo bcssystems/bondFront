@@ -62,8 +62,19 @@ async function cargarPaises() {
       sel.innerHTML = '<option value="">Seleccionar...</option>' +
         state.paises.map(p => `<option value="${p.codigo}">${p.nombre} (${p.prefijo})</option>`).join('');
       Utils.makeSearchableSelect('clientePais');
+      sel.addEventListener('change', aplicarPrefijoPais);
+      aplicarPrefijoPais();
     }
   } catch (_) {}
+}
+
+function aplicarPrefijoPais() {
+  const span = document.getElementById('clientePrefijo');
+  if (!span) return;
+  const codigo = document.getElementById('clientePais')?.value || '';
+  const pais = state.paises.find(p => p.codigo === codigo);
+  const prefijo = pais && pais.prefijo ? pais.prefijo : '+52';
+  if (span.textContent !== prefijo) span.textContent = prefijo;
 }
 
 function cargarRegimenes() {
@@ -99,31 +110,44 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="23"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.data.map(c => {
     const saldo = c.saldoActual;
     const saldoRojo = saldo != null && saldo > 0;
+    const pais = (state.paises || []).find(p => p.codigo === c.codigoPais);
+    const paisNombre = pais ? pais.nombre : (c.codigoPais || '-');
+    const direccionNum = [c.calle, c.numExt, c.numInt].filter(Boolean).join(' ') || '-';
     return `<tr${c.enListaNegra ? ' style="background:rgba(220,38,38,0.04)"' : ''}>
     <td>${Utils.esc(c.nombre)}</td>
     <td>${Utils.esc(c.apellidoPaterno || '')} ${Utils.esc(c.apellidoMaterno || '')}</td>
     <td>${Utils.esc(c.telefono) || '-'}</td>
+    <td>${Utils.esc(paisNombre)}</td>
+    <td>${Utils.esc(c.whatsapp) || '-'}</td>
+    <td>${Utils.esc(c.empresa) || '-'}</td>
     <td>${Utils.esc(c.rfc) || '-'}</td>
-    <td style="max-width:140px;white-space:normal">${Utils.esc(c.regimenFiscal) || '-'}</td>
-    <td style="max-width:150px;white-space:normal">${Utils.esc(c.direccion || '')}</td>
-    <td class="text-center">${c.tieneCredito ? '<span class="badge bg-info"><i class="fas fa-check"></i>' +
-      (c.limiteCredito == null ? ' ilimitado' : '') + '</span>' : '<span class="text-muted">-</span>'}</td>
+    <td>${Utils.esc(c.regimenFiscal) || '-'}</td>
+    <td>${Utils.esc(c.representanteLegal) || '-'}</td>
+    <td>${Utils.esc(c.direccionEntrega) || '-'}</td>
+    <td>${Utils.esc(c.cp) || '-'}</td>
+    <td>${Utils.esc(c.estado) || '-'}</td>
+    <td>${Utils.esc(c.municipio) || '-'}</td>
+    <td>${Utils.esc(c.colonia) || '-'}</td>
+    <td>${Utils.esc(direccionNum)}</td>
+    <td>${c.tieneCredito ? '<span class="badge bg-info"><i class="fas fa-check"></i>' +
+      (c.limiteCredito == null ? ' ilimitado' : '') + '</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>') : '<span class="text-muted">-</span>'}</td>
+    <td>${c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : (c.tieneCredito ? 'Ilimitado' : '-')}</td>
     <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? '$' + saldo.toFixed(2) : '-'}</td>
     <td class="text-center">
       <input type="checkbox" class="form-check-input" data-id="${c.idCliente}" data-ln="${c.enListaNegra ? 1 : 0}" data-nombre="${Utils.esc(c.nombre + ' ' + (c.apellidoPaterno||''))}" ${c.enListaNegra ? 'checked' : ''} title="Lista negra">
     </td>
+    <td>${Utils.esc(c.motivoListaNegra) || '-'}</td>
+    <td>${c.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Inactivo</span>'}</td>
+    <td>${c.fechaRegistro ? Utils.formatDateTime(c.fechaRegistro) : '-'}</td>
     <td class="acciones-cell">
-      <button class="btn-action" style="color:var(--warning)" data-id="${c.idCliente}" data-action="ine" title="INE"><i class="fas fa-id-card"></i></button>
-      <button class="btn-action" style="color:var(--success)" data-id="${c.idCliente}" data-action="precios" title="Precios"><i class="fas fa-dollar-sign"></i></button>
-      <button class="btn-action btn-action-edit" data-id="${c.idCliente}" title="Editar"><i class="fas fa-edit"></i></button>
-      <button class="btn-action btn-action-delete" data-id="${c.idCliente}" title="Eliminar"><i class="fas fa-trash"></i></button>
+      <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCliente}" data-action="menu" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
   </tr>`;
   }).join('');
@@ -163,13 +187,32 @@ function renderPagination() {
 }
 
 function handleTableClick(e) {
-  const btn = e.target.closest('.btn-action');
-  if (!btn) return;
-  const id = parseInt(btn.dataset.id);
-  if (btn.dataset.action === 'edit' || btn.classList.contains('btn-action-edit')) abrirModal(id);
-  else if (btn.dataset.action === 'delete' || btn.classList.contains('btn-action-delete')) confirmarEliminar(id);
-  else if (btn.dataset.action === 'ine') abrirModalIne(id);
-  else if (btn.dataset.action === 'precios') abrirModalPrecios(id);
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    abrirAccionesCliente(kebab, id);
+    return;
+  }
+  const item = e.target.closest('.btn-action');
+  if (!item) return;
+  e.preventDefault();
+  const id = parseInt(item.dataset.id);
+  if (item.dataset.action === 'edit' || item.classList.contains('btn-action-edit')) abrirModal(id);
+  else if (item.dataset.action === 'delete' || item.classList.contains('btn-action-delete')) confirmarEliminar(id);
+  else if (item.dataset.action === 'ine') abrirModalIne(id);
+  else if (item.dataset.action === 'precios') abrirModalPrecios(id);
+}
+
+function abrirAccionesCliente(anchor, id) {
+  const c = (state.data || []).find(x => x.idCliente === id);
+  const items = [
+    { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
+    { icon: 'fa-dollar-sign', text: 'Precios especiales', color: 'var(--success)', onClick: () => abrirModalPrecios(id) },
+    { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+    { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
+  ];
+  Utils.abrirMenuKebab(anchor, items);
 }
 
 function abrirModal(id) {
@@ -177,6 +220,7 @@ function abrirModal(id) {
   const modal = new bootstrap.Modal(document.getElementById('clienteModal'));
   document.getElementById('clienteModalTitle').textContent = id ? 'Editar Cliente' : 'Nuevo Cliente';
   document.getElementById('formCliente').reset();
+  aplicarPrefijoPais();
 
   if (id) {
     const c = state.data.find(c => c.idCliente === id);
@@ -186,8 +230,20 @@ function abrirModal(id) {
       document.getElementById('clienteApaterno').value = c.apellidoPaterno || '';
       document.getElementById('clienteAmaterno').value = c.apellidoMaterno || '';
       document.getElementById('clienteTelefono').value = c.telefono || '';
+      const ladaEl = document.getElementById('clienteLada');
+      if (ladaEl) {
+        const tel = (c.telefono || '').replace(/\D/g, '');
+        if (tel.length === 10) {
+          ladaEl.value = tel.slice(0, 3);
+          document.getElementById('clienteTelefono').value = tel.slice(3);
+        } else {
+          ladaEl.value = '';
+          document.getElementById('clienteTelefono').value = c.telefono || '';
+        }
+      }
       document.getElementById('clientePais').value = c.codigoPais || '';
       Utils.updateSearchableOptions('clientePais');
+      aplicarPrefijoPais();
       document.getElementById('clienteWhatsapp').value = c.whatsapp || '';
       document.getElementById('clienteEmpresa').value = c.empresa || '';
       document.getElementById('clienteRegimen').value = c.regimenFiscal || '';
@@ -215,6 +271,14 @@ function toggleLimiteCreditoGroup(show) {
   document.getElementById('clienteCreditoIlimitadoGroup').style.display = show ? 'block' : 'none';
 }
 
+function combinarTelefonoCliente() {
+  const lada = document.getElementById('clienteLada')?.value.replace(/\D/g, '').trim() || '';
+  const num = document.getElementById('clienteTelefono').value.trim();
+  const local = num.replace(/\D/g, '');
+  if (lada && local.length >= 7) return lada + local;
+  return num;
+}
+
 async function guardarCliente() {
   const tieneCredito = document.getElementById('clienteTieneCredito').checked;
   const ilimitado = document.getElementById('clienteCreditoIlimitado').checked;
@@ -222,7 +286,7 @@ async function guardarCliente() {
     nombre: document.getElementById('clienteNombre').value.trim(),
     apellidoPaterno: document.getElementById('clienteApaterno').value.trim(),
     apellidoMaterno: document.getElementById('clienteAmaterno').value.trim(),
-    telefono: document.getElementById('clienteTelefono').value.trim(),
+    telefono: combinarTelefonoCliente(),
     codigoPais: document.getElementById('clientePais').value,
     whatsapp: document.getElementById('clienteWhatsapp').value.trim(),
     empresa: document.getElementById('clienteEmpresa').value.trim(),
@@ -243,8 +307,8 @@ async function guardarCliente() {
   if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
   if (!data.apellidoPaterno) { Utils.showToast('El apellido paterno es obligatorio', 'warning'); return; }
   if (!data.telefono) { Utils.showToast('El tel\u00e9fono es obligatorio', 'warning'); return; }
-  if (!data.regimenFiscal) { Utils.showToast('El r\u00e9gimen fiscal es obligatorio', 'warning'); return; }
-  if (!data.cp) { Utils.showToast('El C.P. es obligatorio', 'warning'); return; }
+
+  if (data.codigoPais === 'MEX' && !data.cp) { Utils.showToast('El C.P. es obligatorio', 'warning'); return; }
 
   if (tieneCredito) {
     data.limiteCredito = ilimitado ? null : (parseFloat(document.getElementById('clienteLimiteCredito').value) || 0);

@@ -9,6 +9,7 @@ let state = {
   productSearchTimeout: null,
   reanudandoVentaId: null,
   esperaVentas: [],
+  activeEsperaTab: null,
   cancelarVentas: [],
   cancelarSelectedId: null,
   lastCortePreview: null,
@@ -90,8 +91,6 @@ function bindEvents() {
   document.getElementById('btnCobrarPOS')?.addEventListener('click', cobrarVenta);
   document.getElementById('btnConfirmarCobroPOS')?.addEventListener('click', confirmarCobro);
   document.getElementById('btnConfirmarCreditoPOS')?.addEventListener('click', confirmarCreditoPOS);
-  document.getElementById('posCreditoInteres')?.addEventListener('input', actualizarMontoOriginalCredito);
-  document.getElementById('posCreditoPlazo')?.addEventListener('change', actualizarMontoOriginalCredito);
   document.getElementById('btnEsperaPOS')?.addEventListener('click', ponerEnEspera);
   document.getElementById('btnNuevoClientePOS')?.addEventListener('click', () => abrirClienteModal());
   document.getElementById('btnGuardarPosCliente')?.addEventListener('click', guardarClienteDesdePOS);
@@ -434,6 +433,9 @@ async function onPosClienteChange() {
     } catch (_) {}
   }
   actualizarPreciosCart();
+  if (bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))) {
+    cargarFormasPagoCobro();
+  }
 }
 
 async function cargarClientesSelect(selectId) {
@@ -521,14 +523,16 @@ async function buscarProductos(showAll) {
         const disabled = reservado || sinStock;
         const precioEspecial = state.preciosClienteMap[p.idProducto];
         const precioMostrar = (precioEspecial && precioEspecial > 0) ? precioEspecial : (p.precioBase || 0);
+        const unidad = (p.unidadMedida || 'UNIDAD').toLowerCase();
         return `<div class="pos-product-result-item ${disabled ? 'text-muted opacity-50' : ''}" data-id="${p.idProducto}" data-sin-stock="${sinStock}">
           <div>
             <div class="fw-semibold small">${Utils.esc(p.nombre)}</div>
-            <small class="text-muted">SKU: ${Utils.esc(p.sku || '-')} | Stock: ${stock}</small>
+            <small class="text-muted">SKU: ${Utils.esc(p.sku || '-')}</small>
             ${sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : ''}
             ${reservado ? '<br><small class="badge bg-warning text-dark mt-1"><i class="fas fa-lock me-1"></i>En uso en otra caja</small>' : ''}
           </div>
           <div class="text-end">
+            <small class="text-muted">${Utils.esc(unidad)} | Stock: ${stock}</small>
             <div class="fw-bold" style="color:var(--primary)">$${precioMostrar.toFixed(2)}${precioEspecial && precioEspecial > 0 ? ' <span class="badge bg-success" style="font-size:0.55rem">P.E.</span>' : ''}</div>
             <button class="btn btn-sm ${disabled ? 'btn-secondary' : 'btn-success'} pos-add-cart" data-id="${p.idProducto}" style="font-size:0.7rem" ${disabled ? 'disabled' : ''}>
               <i class="fas fa-cart-plus"></i>
@@ -612,6 +616,7 @@ async function agregarAlCart(prodId) {
       cantidad: 1,
       precioUnitario: precio,
       stockActual: getStockSucursal(p),
+      unidadMedida: p.unidadMedida || 'METRO',
     });
   }
 
@@ -625,18 +630,23 @@ function renderCart() {
   if (!tbody) return;
 
   if (state.cart.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>';
   } else {
     tbody.innerHTML = state.cart.map((d, i) => {
+      const unidad = (d.unidadMedida || 'UNIDAD').toUpperCase();
+      const step = (unidad === 'METRO' || unidad === 'KG' || unidad === 'LITRO' || unidad === 'KILOGRAMO') ? '0.01' : '1';
+      const stockVisible = ['VR', 'ENVIO'].includes(d.sku || '') ? '' : '<td class="text-center small text-muted">' + (d.stockActual != null ? d.stockActual : '-') + '</td>';
       return '<tr>' +
       '<td>' +
         '<div class="fw-semibold small">' + Utils.esc(d.nombre) + '</div>' +
         '<small class="text-muted" style="font-size:0.65rem">' + (d.sku || '') + '</small>' +
       '</td>' +
+      stockVisible +
+      '<td class="text-center small text-muted">' + Utils.esc(unidad.toLowerCase()) + '</td>' +
       '<td>' +
         '<div class="d-flex align-items-center gap-1">' +
           '<button class="pos-cart-qty-btn pos-cart-qty-minus" data-index="' + i + '"><i class="fas fa-minus"></i></button>' +
-          '<span class="fw-semibold px-1">' + d.cantidad + '</span>' +
+          '<input type="number" class="form-control form-control-sm pos-cart-qty-input text-center" data-index="' + i + '" value="' + d.cantidad + '" min="1" step="' + step + '" style="width:55px;font-size:0.8rem;padding:2px 4px">' +
           '<button class="pos-cart-qty-btn pos-cart-qty-plus" data-index="' + i + '"><i class="fas fa-plus"></i></button>' +
         '</div>' +
       '</td>' +
@@ -645,6 +655,41 @@ function renderCart() {
       '<td><button class="pos-cart-remove" data-index="' + i + '"><i class="fas fa-times"></i></button></td>' +
     '</tr>';
     }).join('');
+
+    tbody.querySelectorAll('.pos-cart-qty-input').forEach(input => {
+      input.addEventListener('change', async () => {
+        const i = parseInt(input.dataset.index);
+        const item = state.cart[i];
+        if (!item) return;
+        let newQty = parseFloat(input.value) || 1;
+        if (newQty < 1) newQty = 1;
+        if (item.sku === 'VR') {
+          item.cantidad = newQty;
+          try { await API.put('/carrito/rapidos/' + item._idRapido, { idCaja: state.caja.idCaja, cantidad: newQty }); } catch (_) {}
+          renderCart();
+          return;
+        }
+        if (item.sku === 'ENVIO') { renderCart(); return; }
+        const p = state.productos.find(x => x.idProducto === item.idProducto);
+        if (p && newQty > getStockSucursal(p)) {
+          Utils.showToast('Stock insuficiente en esta sucursal', 'warning');
+          input.value = item.cantidad;
+          return;
+        }
+        try {
+          await API.put('/carrito/actualizar', {
+            idCaja: state.caja.idCaja,
+            idProducto: item.idProducto,
+            cantidad: newQty,
+          });
+        } catch (err) { Utils.showToast(err.message, 'error'); input.value = item.cantidad; return; }
+        item.cantidad = newQty;
+        renderCart();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      });
+    });
     tbody.querySelectorAll('.pos-cart-qty-minus').forEach(btn => {
       btn.addEventListener('click', async () => {
         const i = parseInt(btn.dataset.index);
@@ -794,31 +839,6 @@ async function cobrarVenta() {
   }
 
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
-  const tipoVenta = document.querySelector('input[name="tipoVenta"]:checked')?.value || 'CONTADO';
-
-  if (tipoVenta === 'CREDITO') {
-    const clienteId = parseInt(document.getElementById('posCliente').value) || null;
-    if (!clienteId) {
-      Utils.showToast('Selecciona un cliente para venta a cr\u00e9dito', 'warning');
-      return;
-    }
-    const cliente = state.clientes.find(c => c.idCliente === clienteId);
-    if (!cliente || !cliente.tieneCredito) {
-      Utils.showToast('El cliente no tiene cr\u00e9dito habilitado', 'warning');
-      return;
-    }
-    const disponible = (cliente.limiteCredito || 0) - (cliente.saldoActual || 0);
-    if (total > disponible) {
-      Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible ($' + disponible.toFixed(2) + ')', 'warning');
-      return;
-    }
-    document.getElementById('posCreditoTotal').textContent = '$' + total.toFixed(2);
-    document.getElementById('posCreditoClienteName').textContent = (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '');
-    document.getElementById('posCreditoInteres').value = '0';
-    actualizarMontoOriginalCredito();
-    new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
-    return;
-  }
 
   document.getElementById('posCobroTotal').textContent = '$' + total.toFixed(2);
   document.getElementById('posCobroNota').value = '';
@@ -833,6 +853,13 @@ async function cargarFormasPagoCobro() {
   try {
     const tipos = await API.get('/tipos-pago');
     const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
+    const clienteIdSel = parseInt(document.getElementById('posCliente').value) || null;
+    const clienteCredito = state.clientes.find(c => c && c.idCliente === clienteIdSel) || null;
+    const clienteHabilitaCredito = !!(clienteCredito && clienteCredito.tieneCredito && clienteCredito.tieneIne);
+    const clienteFaltaIne = !!(clienteCredito && clienteCredito.tieneCredito && !clienteCredito.tieneIne);
+    const clienteCreditoNombres = clienteCredito
+      ? Utils.esc((clienteCredito.nombre || '') + ' ' + (clienteCredito.apellidoPaterno || '')) + (clienteHabilitaCredito ? '' : (clienteFaltaIne ? ' <span class="text-danger">(falta INE)</span>' : ' <span class="text-danger">(sin cr\u00e9dito)</span>'))
+      : '<span class="text-muted">Selecciona un cliente en el POS</span>';
 
     if (!tipos || tipos.length === 0) {
       container.innerHTML = '<div class="text-center py-3 text-muted">No hay formas de pago configuradas</div>';
@@ -857,7 +884,25 @@ async function cargarFormasPagoCobro() {
           </div>
         </div>
       </div>`;
-    }).join('');
+    }).join('') +
+
+      `<div class="payment-row payment-credito-row border rounded p-2 mb-1" style="background:rgba(13,110,253,.05)">
+        <div class="row g-2 align-items-center">
+          <div class="col-3">
+            <span class="fw-semibold small text-primary"><i class="fas fa-credit-card me-1"></i>CR\u00c9DITO</span>
+            <input type="hidden" class="payment-credito" value="1">
+          </div>
+          <div class="col-3">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control payment-monto payment-credito-monto" data-credito="1" step="0.01" min="0" value="0.00" ${clienteHabilitaCredito ? '' : 'disabled'}>
+            </div>
+          </div>
+          <div class="col-6">
+            <small class="text-muted">Cliente: <strong>${clienteCreditoNombres}</strong><br>${clienteHabilitaCredito ? '' : (clienteFaltaIne ? '<span class="text-danger" style="font-size:0.7rem">El cliente debe tener INE registrada para usar cr\u00e9dito</span>' : '<span class="text-danger" style="font-size:0.7rem">Selecciona un cliente con cr\u00e9dito habilitado</span>')}</small>
+          </div>
+        </div>
+      </div>`;
 
     container.addEventListener('input', recalcularSumaCobro);
 
@@ -897,20 +942,52 @@ async function confirmarCobro() {
 
   const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
-  const tipoVenta = document.querySelector('input[name="tipoVenta"]:checked')?.value || 'CONTADO';
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
 
   const pagos = [];
+  let montoCredito = 0;
   document.querySelectorAll('.payment-monto').forEach(inp => {
     const monto = parseFloat(inp.value) || 0;
-    if (monto > 0) {
-      const idTipoPago = parseInt(inp.dataset.id);
-      const refInput = document.querySelector(`.payment-referencia[data-id="${idTipoPago}"]`);
-      const referencia = refInput ? refInput.value.trim() || null : null;
-      pagos.push({ idTipoPago, monto, referencia });
+    if (monto <= 0) return;
+    if (inp.dataset.credito) {
+      montoCredito += monto;
+      return;
     }
+    const idTipoPago = parseInt(inp.dataset.id);
+    const refInput = document.querySelector(`.payment-referencia[data-id="${idTipoPago}"]`);
+    const referencia = refInput ? refInput.value.trim() || null : null;
+    pagos.push({ idTipoPago, monto, referencia });
   });
+
+  if (montoCredito > 0) {
+    if (!clienteId) {
+      Utils.showToast('Selecciona un cliente en el POS para venta a cr\u00e9dito', 'warning');
+      return;
+    }
+    const cliente = state.clientes.find(c => c.idCliente === clienteId);
+    if (!cliente || !cliente.tieneCredito) {
+      Utils.showToast('El cliente seleccionado no tiene cr\u00e9dito habilitado', 'warning');
+      return;
+    }
+    if (!cliente.tieneIne) {
+      Utils.showToast('El cliente debe tener INE registrada para venta a cr\u00e9dito', 'warning');
+      return;
+    }
+    if (cliente.limiteCredito != null) {
+      const disp = cliente.limiteCredito - (cliente.saldoActual || 0);
+      if (total > disp) {
+        Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible ($' + disp.toFixed(2) + ')', 'warning');
+        return;
+      }
+    }
+    if (pagos.length > 0 && (pagos.reduce((s, p) => s + p.monto, 0) + montoCredito + 0.01) < total) {
+      Utils.showToast('La suma de los pagos debe ser al menos igual al total', 'warning');
+      return;
+    }
+    await pedirConfirmarCredito(total, subtotal, clienteId, nota);
+    return;
+  }
 
   if (pagos.length === 0) {
     Utils.showToast('Selecciona al menos una forma de pago', 'warning');
@@ -926,7 +1003,7 @@ async function confirmarCobro() {
   const request = {
     idCaja: state.caja.idCaja,
     idCliente: clienteId || null,
-    tipoVenta: tipoVenta,
+    tipoVenta: 'CONTADO',
     precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
@@ -964,14 +1041,13 @@ async function confirmarCobro() {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-function actualizarMontoOriginalCredito() {
-  const total = parseFloat(document.getElementById('posCreditoTotal').textContent.replace('$', ''));
-  const interes = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
-  const plazo = parseInt(document.getElementById('posCreditoPlazo').value) || 1;
-  const montoOriginal = total + (total * interes / 100);
-  const pagoMensual = montoOriginal / plazo;
-  document.getElementById('posCreditoMontoOriginal').textContent = '$' + montoOriginal.toFixed(2);
-  document.getElementById('posCreditoPagoMensual').textContent = '$' + pagoMensual.toFixed(2) + ' x ' + plazo + ' meses';
+async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
+  const cliente = state.clientes.find(c => c.idCliente === clienteId);
+  document.getElementById('posCreditoTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
+  document.getElementById('posCreditoMontoOriginal').textContent = '$' + total.toFixed(2);
+  bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
+  new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
 }
 
 async function confirmarCreditoPOS() {
@@ -981,8 +1057,8 @@ async function confirmarCreditoPOS() {
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
-  const plazoMeses = parseInt(document.getElementById('posCreditoPlazo').value);
-  const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
+  const plazoMeses = 1;
+  const porcentajeInteres = 0;
 
   const request = {
     idCaja: state.caja.idCaja,
@@ -1005,7 +1081,6 @@ async function confirmarCreditoPOS() {
     })),
     pagos: [],
   };
-
   try {
     if (state.reanudandoVentaId) {
       await API.post('/ventas/' + state.reanudandoVentaId + '/cancelar', {});
@@ -1040,11 +1115,13 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
   const detalleRows = (venta.detalles || []).map(d => {
     const dSubtotal = d.subtotal || (d.cantidad * d.precioUnitario) || 0;
     const nombre = Utils.esc(d.productoNombre || d.descripcion || 'Producto');
+    const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
     const attrs = d.atributosText ? '<br><span class="detalle-attrs">' + Utils.esc(d.atributosText) + '</span>' : '';
     return `
     <tr class="detalle-row">
       <td>${nombre}${attrs}</td>
       <td class="center">${d.cantidad}</td>
+      <td class="center small">${Utils.esc(unidad)}</td>
       <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
       <td class="right">$${dSubtotal.toFixed(2)}</td>
     </tr>`;
@@ -1067,9 +1144,11 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
   const deudorNombre = cliPagare
     ? [cliPagare.nombre || '', cliPagare.apellidoPaterno || '', cliPagare.apellidoMaterno || ''].filter(Boolean).join(' ')
     : (venta.clienteNombre || '');
-  const deudorDireccion = cliPagare
-    ? [cliPagare.calle || '', cliPagare.numExt ? '#' + cliPagare.numExt : '', cliPagare.numInt ? 'Int ' + cliPagare.numInt : '', cliPagare.colonia ? 'Col. ' + cliPagare.colonia : ''].filter(Boolean).join(', ') || (cliPagare.direccion || '')
+  const deudorDireccionCompuesta = cliPagare
+    ? [cliPagare.calle || '', cliPagare.numExt ? '#' + cliPagare.numExt : '', cliPagare.numInt ? 'Int ' + cliPagare.numInt : '', cliPagare.colonia ? 'Col. ' + cliPagare.colonia : ''].filter(Boolean).join(', ')
     : '';
+  const deudorDireccion = cliPagare ? (cliPagare.direccion || deudorDireccionCompuesta || '') : '';
+  const deudorRfc = cliPagare ? (cliPagare.rfc || '') : '';
   const deudorPoblacion = cliPagare
     ? [cliPagare.municipio || '', cliPagare.estado || ''].filter(Boolean).join(', ') || (cliPagare.cp || '')
     : '';
@@ -1109,6 +1188,7 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
         <table class="pagare-caja-tabla">
           <tr><td class="pagare-caja-campo">Nombre:</td><td>${Utils.esc(deudorNombre) || '______________'}</td></tr>
           <tr><td class="pagare-caja-campo">Direcci\u00f3n:</td><td>${Utils.esc(deudorDireccion) || '______________'}</td></tr>
+          <tr><td class="pagare-caja-campo">RFC:</td><td>${Utils.esc(deudorRfc) || '______________'}</td></tr>
           <tr><td class="pagare-caja-campo">Poblaci\u00f3n:</td><td>${Utils.esc(deudorPoblacion) || '______________'}</td></tr>
           <tr><td class="pagare-caja-campo">Tel.:</td><td>${Utils.esc(deudorTel) || '______________'}</td></tr>
         </table>
@@ -1272,32 +1352,32 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
     .pagare { margin-top: 8px; }
     .pagare-h2 {
       text-align: center;
-      font-size: 22pt;
+      font-size: 15pt;
       font-weight: 800;
-      letter-spacing: 10px;
+      letter-spacing: 8px;
       color: #1e3a5f;
       text-transform: uppercase;
-      margin: 24px 0 2px;
+      margin: 16px 0 2px;
     }
     .pagare-doc-no {
       text-align: center;
-      font-size: 11pt;
+      font-size: 8pt;
       color: #2563EB;
       font-weight: 600;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
       border-bottom: 2px solid #2563EB;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .pagare-lugar-fecha {
       display: flex;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 6px;
-      font-size: 9pt;
+      font-size: 7pt;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .pagare-bueno-por {
       display: flex;
@@ -1305,13 +1385,13 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       align-items: flex-end;
       border: 1px solid #334155;
       border-radius: 4px;
-      padding: 8px 12px;
-      margin: 12px 0;
-      font-size: 11pt;
+      padding: 6px 10px;
+      margin: 10px 0;
+      font-size: 8.5pt;
     }
     .pagare-bueno-por-label { font-weight: 700; letter-spacing: 1px; }
     .pagare-bueno-por-monto {
-      font-size: 13pt;
+      font-size: 10pt;
       font-weight: 800;
       color: #1e3a5f;
       border-bottom: 2px solid #334155;
@@ -1319,37 +1399,37 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       text-align: right;
     }
     .pagare-leyenda {
-      font-size: 10.5pt;
+      font-size: 8pt;
       text-align: justify;
-      line-height: 1.6;
-      margin-bottom: 9px;
+      line-height: 1.45;
+      margin-bottom: 7px;
     }
     .pagare-pie {
       display: flex;
       align-items: stretch;
-      gap: 20px;
-      margin-top: 26px;
+      gap: 16px;
+      margin-top: 20px;
     }
     .pagare-caja {
       width: 62%;
-      border: 2px solid #334155;
+      border: 1.5px solid #334155;
       border-radius: 4px;
-      padding: 8px 10px;
+      padding: 6px 8px;
     }
     .pagare-caja-titulo {
       text-align: center;
       font-weight: 700;
-      font-size: 8pt;
+      font-size: 6.5pt;
       letter-spacing: 1px;
       border-bottom: 1px solid #334155;
-      padding-bottom: 4px;
-      margin-bottom: 6px;
+      padding-bottom: 3px;
+      margin-bottom: 4px;
       text-transform: uppercase;
     }
     .pagare-caja-tabla { width: 100%; border-collapse: collapse; }
     .pagare-caja-tabla td {
-      font-size: 9pt;
-      padding: 3px 4px;
+      font-size: 7pt;
+      padding: 2px 3px;
       vertical-align: top;
     }
     .pagare-caja-campo {
@@ -1364,28 +1444,52 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
       justify-content: flex-end;
       text-align: center;
     }
-    .pagare-linea-firma { border-bottom: 1px solid #222; height: 30px; }
+    .pagare-linea-firma { border-bottom: 1px solid #222; height: 24px; }
     .pagare-firma-rol {
-      margin-top: 6px;
-      font-size: 8pt;
+      margin-top: 4px;
+      font-size: 6.5pt;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
     .pagare-firma-nombre {
       margin-top: 2px;
-      font-size: 9pt;
+      font-size: 7pt;
       font-weight: 600;
     }
   `;
 
   function buildBodyHtml(copyIndex) {
+    const totalesHtml = `
+  <div class="divider"></div>
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="right">$${(venta.subtotal || 0).toFixed(2)}</td></tr>
+    <tr><td>Descuento</td><td class="right">-$${(venta.descuento || 0).toFixed(2)}</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td class="right">$${(isCredit ? totalConInteres : venta.total || 0).toFixed(2)}</td></tr>
+  </table>
+  <div class="divider"></div>
+  <div class="section">
+    <div class="section-title">Desglose de Pagos</div>
+    <table class="totals">
+      ${pagoRows}
+    </table>
+  </div>
+  ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}`;
+
+    const pieHtml = isCredit
+      ? `<div class="bottom-section pagare-footer">${pagareHtml}</div>`
+      : `<div class="bottom-section"><div class="footer">
+      <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
+      Este documento es un comprobante interno de venta<br>
+      ${fechaStr} ${horaStr}
+    </div></div>`;
+
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
   <div class="header">
     <h1>BONDS</h1>
     <div class="sub">Sistema de Administraci\u00f3n</div>
-    <div class="folio">FACTURA #${venta.idVenta}</div>
+    <div class="folio">REMISI\u00d3N #${venta.idVenta}</div>
   </div>
   <table class="info-grid">
     <tr><td class="label">Fecha</td><td class="value">${fechaStr}</td><td class="label">Caja</td><td class="value">${Utils.esc(venta.cajaNombre || state.caja?.nombre || '')}</td></tr>
@@ -1397,49 +1501,25 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
   <table class="detalles">
     <thead>
       <tr>
-        <th style="width:42%">Descripci\u00f3n</th>
-        <th class="center" style="width:10%">Cant</th>
-        <th class="right" style="width:20%">Precio</th>
-        <th class="right" style="width:28%">Importe</th>
+        <th style="width:38%">Descripci\u00f3n</th>
+        <th class="center" style="width:9%">Cant</th>
+        <th class="center" style="width:12%">Unidad</th>
+        <th class="right" style="width:18%">Precio</th>
+        <th class="right" style="width:23%">Importe</th>
       </tr>
     </thead>
     <tbody>
       ${detalleRows}
     </tbody>
   </table>
-  <div class="bottom-section">
-    <div class="divider"></div>
-    <table class="totals">
-      <tr><td>Subtotal</td><td class="right">$${(venta.subtotal || 0).toFixed(2)}</td></tr>
-      <tr><td>Descuento</td><td class="right">-$${(venta.descuento || 0).toFixed(2)}</td></tr>
-      <tr class="total-row"><td>TOTAL</td><td class="right">$${(isCredit ? totalConInteres : venta.total || 0).toFixed(2)}</td></tr>
-    </table>
-    <div class="divider"></div>
-    <div class="section">
-      <div class="section-title">Desglose de Pagos</div>
-      <table class="totals">
-        ${pagoRows}
-      </table>
-    </div>
-    ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
-    <div class="footer">
-      <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
-      Este documento es un comprobante interno de venta<br>
-      ${fechaStr} ${horaStr}
-    </div>
-  </div>`;
+  ${totalesHtml}
+  ${pieHtml}`;
   }
 
   const printWindow = window.open('', '_blank', 'width=800,height=600');
-  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Factura - Venta #' + venta.idVenta + '</title>\n  <style>' + ticketStyle + '</style>\n</head>\n<body>';
+  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + ticketStyle + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
     fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
-    if (isCredit) {
-      const pagareLabel = numCopies > 1
-        ? '<div class="copy-label">--- COPIA ' + (i + 1) + ' DE ' + numCopies + ' (PAGAR\u00c9) ---</div>'
-        : '';
-      fullHtml += '<div class="print-copy">' + pagareLabel + pagareHtml + '</div>';
-    }
   }
   fullHtml += '\n</body>\n</html>';
   printWindow.document.write(fullHtml);
@@ -1553,13 +1633,12 @@ async function ponerEnEspera() {
   if (state.cart.length === 0 || !state.caja) return;
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
-  const tipoVenta = document.querySelector('input[name="tipoVenta"]:checked')?.value || 'CONTADO';
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
 
   const request = {
     idCaja: state.caja.idCaja,
     idCliente: clienteId || null,
-    tipoVenta: tipoVenta,
+    tipoVenta: 'CONTADO',
     precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
@@ -1761,53 +1840,46 @@ async function cargarEsperas() {
 }
 
 function renderEsperas() {
-  const list = document.getElementById('posEsperaList');
-  const count = document.getElementById('posEsperaCount');
-  if (!list) return;
-  count.textContent = state.esperaVentas.length;
-  if (state.esperaVentas.length === 0) {
-    list.innerHTML = '<small class="text-muted">Sin ventas en espera</small>';
+  const tabsContainer = document.getElementById('posEsperaTabs');
+  const tabsPanel = document.getElementById('posEsperaTabsPanel');
+  if (!tabsContainer) return;
+
+  if (!state.esperaVentas || state.esperaVentas.length === 0) {
+    if (tabsPanel) tabsPanel.classList.add('d-none');
+    tabsContainer.innerHTML = '';
     return;
   }
-  list.innerHTML = state.esperaVentas.map(v =>
-    `<div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="font-size:0.8rem">
-      <div>
-        <div class="fw-semibold">#${v.idVenta} ${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</div>
-        <small class="text-muted">$${v.total.toFixed(2)}</small>
-      </div>
-      <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-success px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="cobrar" title="Cobrar" style="font-size:0.65rem"><i class="fas fa-cash-register"></i> Cobrar</button>
-        <button class="btn btn-sm btn-primary px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="factura" title="Imprimir factura" style="font-size:0.65rem"><i class="fas fa-print"></i> Factura</button>
-        <button class="btn btn-sm btn-outline-primary px-2 pos-espera-tab" data-id="${v.idVenta}" data-accion="editar" title="Editar" style="font-size:0.65rem"><i class="fas fa-edit"></i> Editar</button>
-        <button class="btn btn-sm btn-outline-danger px-2 pos-cancelar-espera" data-id="${v.idVenta}" title="Cancelar venta" style="font-size:0.7rem">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    </div>`
-  ).join('');
+  if (tabsPanel) tabsPanel.classList.remove('d-none');
 
-  list.querySelectorAll('.pos-espera-tab').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const accion = btn.dataset.accion;
-      const id = parseInt(btn.dataset.id);
-      if (accion === 'cobrar') cobrarEspera(id);
-      else if (accion === 'factura') imprimirEspera(id);
-      else if (accion === 'editar') reanudarEspera(id);
-    });
-  });
+  if (!state.activeEsperaTab || !state.esperaVentas.find(v => v.idVenta === state.activeEsperaTab)) {
+    state.activeEsperaTab = state.esperaVentas[0].idVenta;
+  }
 
-  list.querySelectorAll('.pos-cancelar-espera').forEach(btn => {
+  tabsContainer.innerHTML = state.esperaVentas.map(v => {
+    const isActive = v.idVenta === state.activeEsperaTab;
+    const cliente = v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador';
+    return `<li class="nav-item" role="presentation">
+      <button class="nav-link ${isActive ? 'active' : ''}" id="espera-tab-${v.idVenta}" data-espera-id="${v.idVenta}"
+        type="button" role="tab" aria-selected="${isActive}"
+        style="font-size:0.72rem;padding:4px 8px;white-space:nowrap;cursor:pointer"
+        title="Recuperar la cuenta de ${cliente}">
+        ${cliente} <small class="text-muted" style="font-weight:600">$${v.total.toFixed(2)}</small>
+      </button>
+    </li>`;
+  }).join('');
+
+  tabsContainer.querySelectorAll('[data-espera-id]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      cancelarEspera(parseInt(btn.dataset.id));
+      e.preventDefault();
+      state.activeEsperaTab = parseInt(btn.dataset.esperaId);
+      reanudarEspera(parseInt(btn.dataset.esperaId));
     });
   });
 }
 
 async function reanudarEspera(idVenta) {
   try {
-    await API.post('/ventas/' + idVenta + '/cancelar', {});
+    await API.post('/ventas/' + idVenta + '/cancelar-espera', {});
 
     const venta = await API.get('/ventas/' + idVenta);
     if (!venta.detalles || venta.detalles.length === 0) {
@@ -1837,16 +1909,13 @@ async function reanudarEspera(idVenta) {
       sku: d.productoSku || '',
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
+      unidadMedida: d.unidadMedida || 'UNIDAD',
+      stockActual: d.stockActual != null ? d.stockActual : 0,
     }));
     actualizarPreciosCart();
 
-    Utils.showToast('Venta #' + idVenta + ' reanudada. Modifica y cobra.', 'info');
+    Utils.showToast('Venta en espera recuperada. Modifica y cobra.', 'success');
     await cargarEsperas();
-
-    const tipoRadios = document.querySelectorAll('input[name="tipoVenta"]');
-    tipoRadios.forEach(r => {
-      if (r.value === venta.tipoVenta) r.checked = true;
-    });
 
     if (venta.clienteId) {
       const sel = document.getElementById('posCliente');
@@ -1857,30 +1926,6 @@ async function reanudarEspera(idVenta) {
     }
 
     document.getElementById('posProductSearch')?.focus();
-  } catch (err) { Utils.showToast(err.message, 'error'); }
-}
-
-async function cobrarEspera(idVenta) {
-  await reanudarEspera(idVenta);
-  document.getElementById('btnCobrarPOS')?.click();
-}
-
-async function imprimirEspera(idVenta) {
-  try {
-    const venta = await API.get('/ventas/' + idVenta);
-    imprimirTicketVenta(venta, venta.tipoVenta === 'CREDITO' ? 2 : 1, venta.tipoVenta === 'CREDITO',
-      venta.plazoMeses, venta.porcentajeInteres, state.clientes.find(c => c.idCliente === venta.idCliente));
-  } catch (err) { Utils.showToast(err.message, 'error'); }
-}
-
-async function cancelarEspera(idVenta) {
-  const ok = await Utils.confirm('Cancelar Venta en Espera',
-    'La venta #' + idVenta + ' est\u00e1 en espera. \u00bfCancelarla definitivamente?');
-  if (!ok) return;
-  try {
-    await API.post('/ventas/' + idVenta + '/cancelar', {});
-    Utils.showToast('Venta en espera cancelada', 'success');
-    await cargarEsperas();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -2076,7 +2121,7 @@ async function guardarClienteDesdePOS() {
   if (!data.nombre) { Utils.showToast('Nombre requerido', 'warning'); return; }
   if (!data.apellidoPaterno) { Utils.showToast('Apellido paterno requerido', 'warning'); return; }
   if (!data.telefono) { Utils.showToast('Tel\u00e9fono requerido', 'warning'); return; }
-  if (!data.regimenFiscal) { Utils.showToast('R\u00e9gimen fiscal requerido', 'warning'); return; }
+
 
   try {
     await API.post('/clientes', data);

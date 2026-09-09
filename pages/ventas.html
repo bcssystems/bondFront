@@ -34,12 +34,18 @@
         </div>
       </div>
 
+      <div class="pos-panel pos-panel-espera-tabs" id="posEsperaTabsPanel">
+        <ul class="nav nav-tabs module-tabs" id="posEsperaTabs" role="tablist"></ul>
+      </div>
+
       <div class="pos-panel pos-panel-cart flex-grow-1">
         <div class="table-responsive">
           <table class="table table-custom mb-0 table-sm">
             <thead>
               <tr>
                 <th>Producto</th>
+                <th style="width:70px">Stock</th>
+                <th style="width:60px">Unidad</th>
                 <th style="width:90px">Cant</th>
                 <th style="width:90px">Precio</th>
                 <th style="width:90px">Subtotal</th>
@@ -47,7 +53,7 @@
               </tr>
             </thead>
             <tbody id="posCartBody">
-              <tr><td colspan="5"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>
+              <tr><td colspan="7"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -80,28 +86,9 @@
     </div>
 
     <div class="pos-right">
-      <div class="pos-panel pos-panel-tipo-venta">
-        <label class="form-label fw-semibold mb-1">Tipo de Venta</label>
-        <div class="btn-group w-100" role="group">
-          <input type="radio" class="btn-check" name="tipoVenta" id="tipoContado" value="CONTADO" checked>
-          <label class="btn btn-outline-success btn-sm" for="tipoContado">Contado</label>
-          <input type="radio" class="btn-check" name="tipoVenta" id="tipoCredito" value="CREDITO">
-          <label class="btn btn-outline-info btn-sm" for="tipoCredito">Cr&eacute;dito</label>
-        </div>
-      </div>
-
       <div class="pos-panel pos-panel-saldo">
         <div class="text-center">
           <div class="small fw-semibold" id="posCajaInfo">Caja: &mdash; | Sucursal: &mdash;</div>
-        </div>
-      </div>
-
-      <div class="pos-panel pos-panel-espera" id="posEsperaPanel">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label fw-semibold mb-0">Ventas en Espera <span class="badge bg-warning" id="posEsperaCount">0</span></label>
-        </div>
-        <div id="posEsperaList" style="max-height:250px;overflow-y:auto">
-          <small class="text-muted">Sin ventas en espera</small>
         </div>
       </div>
 
@@ -207,7 +194,7 @@
               <input type="text" class="form-control form-control-sm" id="posClienteEmpresa">
             </div>
             <div class="col-6">
-              <label class="form-label">R&eacute;gimen Fiscal <span class="text-danger">*</span></label>
+              <label class="form-label">R&eacute;gimen Fiscal</label>
               <select class="form-select form-select-sm" id="posClienteRegimen"></select>
             </div>
             <div class="col-12"><hr class="my-1"></div>
@@ -389,27 +376,8 @@
               <label class="form-label">Cliente <span class="text-danger">*</span></label>
               <div class="fw-semibold small" id="posCreditoClienteName">-</div>
             </div>
-            <div class="row g-2">
-              <div class="col-6">
-                <label class="form-label">Plazo (meses) <span class="text-danger">*</span></label>
-                <select class="form-select form-select-sm" id="posCreditoPlazo">
-                  <option value="1">1 mes</option>
-                  <option value="2">2 meses</option>
-                  <option value="3" selected>3 meses</option>
-                  <option value="4">4 meses</option>
-                  <option value="6">6 meses</option>
-                  <option value="12">12 meses</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label">Inter&eacute;s (%)</label>
-                <input type="number" class="form-control form-control-sm" id="posCreditoInteres" step="0.1" min="0" value="0">
-              </div>
-            </div>
             <div class="mt-3 p-2 bg-light rounded">
-              <small class="text-muted">Total c/inter&eacute;s: <strong id="posCreditoMontoOriginal">$0.00</strong></small>
-              <br>
-              <small class="text-muted">Pago mensual: <strong id="posCreditoPagoMensual">$0.00</strong></small>
+              <small class="text-muted">Total: <strong id="posCreditoMontoOriginal">$0.00</strong></small>
             </div>
           </form>
         </div>

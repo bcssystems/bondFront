@@ -11,8 +11,21 @@ function initSidebarDelegation() {
       const targetId = toggle.dataset.target;
       const submenu = document.getElementById(targetId);
       if (submenu) {
-        submenu.classList.toggle('open');
-        toggle.classList.toggle('open');
+        const isOpening = !submenu.classList.contains('open');
+        document.querySelectorAll('.sidebar-submenu.open').forEach(sm => {
+          sm.classList.remove('open');
+          const prevToggle = document.querySelector('.sidebar-sub-toggle[aria-controls="' + sm.id + '"]');
+          if (prevToggle) prevToggle.classList.remove('open');
+          const prevToggleByTarget = document.querySelector('.sidebar-sub-toggle[data-target="' + sm.id + '"]');
+          if (prevToggleByTarget) prevToggleByTarget.classList.remove('open');
+        });
+        document.querySelectorAll('.sidebar-sub-toggle.open').forEach(t => {
+          if (t !== toggle) t.classList.remove('open');
+        });
+        if (isOpening) {
+          submenu.classList.add('open');
+          toggle.classList.add('open');
+        }
       }
       return;
     }

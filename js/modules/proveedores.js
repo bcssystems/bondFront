@@ -43,8 +43,7 @@ function renderTable() {
     <td>${Utils.esc(p.contactoNombre) || '-'}</td>
     <td><span class="badge-status ${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'S&iacute;' : 'No'}</span></td>
     <td class="acciones-cell">
-      <button class="btn-action btn-action-edit" data-id="${p.idProveedor}" title="Editar"><i class="fas fa-edit"></i></button>
-      <button class="btn-action btn-action-delete" data-id="${p.idProveedor}" title="Eliminar"><i class="fas fa-trash"></i></button>
+      <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${p.idProveedor}" data-action="menu" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
   </tr>`).join('');
 }
@@ -76,11 +75,22 @@ function renderPagination() {
 }
 
 function handleTableClick(e) {
-  const btn = e.target.closest('.btn-action');
-  if (!btn) return;
-  const id = parseInt(btn.dataset.id);
-  if (btn.classList.contains('btn-action-edit')) abrirModal(id);
-  else if (btn.classList.contains('btn-action-delete')) confirmarEliminar(id);
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    Utils.abrirMenuKebab(kebab, [
+      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
+    ]);
+    return;
+  }
+  const item = e.target.closest('.btn-action');
+  if (!item) return;
+  e.preventDefault();
+  const id = parseInt(item.dataset.id);
+  if (item.dataset.action === 'edit' || item.classList.contains('btn-action-edit')) abrirModal(id);
+  else if (item.dataset.action === 'delete' || item.classList.contains('btn-action-delete')) confirmarEliminar(id);
 }
 
 function abrirModal(id) {

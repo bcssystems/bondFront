@@ -311,7 +311,9 @@ body {
 .productos-tree-header .th-img { width: 40px; flex-shrink: 0; }
 .productos-tree-header .th-sku { width: 130px; flex-shrink: 0; }
 .productos-tree-header .th-nombre { flex: 1; min-width: 0; }
+.productos-tree-header .th-unidad { width: 80px; flex-shrink: 0; text-align: center; }
 .productos-tree-header .th-stock { width: 80px; flex-shrink: 0; text-align: right; }
+.productos-tree-header .th-rollos { width: 80px; flex-shrink: 0; text-align: right; }
 .productos-tree-header .th-precio { width: 90px; flex-shrink: 0; text-align: right; }
 .productos-tree-header .th-tipo { width: 100px; flex-shrink: 0; text-align: center; }
 .productos-tree-header .th-estado { width: 80px; flex-shrink: 0; text-align: center; }
@@ -435,6 +437,21 @@ body {
   text-align: right;
   font-size: 0.88rem;
 }
+.producto-unidad {
+  width: 80px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+.producto-rollos {
+  width: 80px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
 .producto-precio {
   width: 90px;
   flex-shrink: 0;
@@ -490,6 +507,78 @@ body {
 .btn-action-cancel:hover { color: var(--danger); background: var(--danger-light); }
 .btn-action-complete:hover { color: #28a745; background: #d4edda; }
 .btn-action-reactivate:hover { color: #28a745; background: #d4edda; }
+
+/* ─── Kebab Menu ─── */
+.btn-kebab-toggle {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn-kebab-toggle:hover,
+.btn-kebab-toggle.show { color: var(--primary); background: var(--primary-light); }
+.acciones-kebab .dropdown-menu {
+  min-width: 200px;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 24px rgba(30, 58, 95, 0.12);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+}
+.acciones-kebab .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.acciones-kebab .dropdown-item i { width: 16px; text-align: center; }
+.acciones-kebab .dropdown-item:hover { background: var(--primary-light); color: var(--primary); }
+.acciones-kebab .dropdown-item.kebab-danger:hover { background: var(--danger-light); color: var(--danger); }
+
+.kebab-menu-float {
+  position: fixed;
+  z-index: 20000;
+  min-width: 170px;
+  max-width: 230px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(30, 58, 95, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transform: scale(0.98) translateY(-3px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.kebab-menu-float.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.kebab-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #222;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kebab-menu-item:hover { background: var(--primary-light); color: var(--primary); }
+.kebab-menu-item i { width: 16px; text-align: center; font-size: 0.85rem; }
+.kebab-menu-item.kebab-danger:hover { background: var(--danger-light); color: var(--danger); }
 
 .badge-status {
   padding: 0.25rem 0.75rem;
@@ -639,6 +728,11 @@ body {
 
 .searchable-wrapper {
   position: relative;
+  z-index: 1;
+}
+.searchable-wrapper.show,
+.searchable-wrapper:focus-within {
+  z-index: 3000;
 }
 .searchable-original {
   display: none !important;
@@ -660,6 +754,15 @@ body {
   border-radius: 8px;
   box-shadow: var(--shadow-md);
   margin-top: 2px;
+}
+
+.filter-bar > div,
+.filter-bar .searchable-wrapper {
+  position: relative;
+  z-index: auto;
+}
+.filter-bar > div:focus-within {
+  z-index: 3000;
 }
 .searchable-dropdown.show {
   display: block;
@@ -836,13 +939,29 @@ body {
   position: relative;
 }
 
+.pos-panel-espera-tabs {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  overflow-x: auto;
+}
+.pos-panel-espera-tabs .nav-tabs {
+  border-bottom: none;
+  flex-wrap: nowrap;
+}
+.pos-panel-espera-tabs .nav-tabs .nav-link {
+  padding: 3px 10px;
+}
 .pos-panel-espera {
-  flex: 1;
-  min-height: 0;
+  flex-shrink: 0;
+  max-height: 130px;
   overflow-y: auto;
 }
 .pos-panel-espera .badge {
   font-size: 0.65rem;
+}
+.pos-panel-espera.d-none,
+.pos-panel-espera-tabs.d-none {
+  display: none;
 }
 
 .prompt-overlay {

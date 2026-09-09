@@ -89,16 +89,15 @@
               <tr>
                 <th style="width:5%">#</th>
                 <th style="width:10%">Venta</th>
-                <th style="width:15%" class="text-end">Original</th>
-                <th style="width:15%" class="text-end">Pendiente</th>
-                <th style="width:10%" class="text-center">Plazo</th>
-                <th style="width:18%">Vencimiento</th>
+                <th style="width:18%" class="text-end">Original</th>
+                <th style="width:18%" class="text-end">Pendiente</th>
+                <th style="width:22%">Vencimiento</th>
                 <th style="width:12%">Estado</th>
                 <th style="width:15%"></th>
               </tr>
             </thead>
             <tbody id="tableCreditosBody">
-              <tr><td colspan="8"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr&eacute;ditos</p></div></td></tr>
+              <tr><td colspan="7"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr&eacute;ditos</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -115,12 +114,13 @@
               <tr>
                 <th>Fecha</th>
                 <th>Tipo</th>
+                <th>Pago</th>
                 <th>Monto</th>
                 <th>Saldo</th>
               </tr>
             </thead>
             <tbody id="tableMovimientosBody">
-              <tr><td colspan="4"><div class="empty-state py-2"><i class="fas fa-history"></i><p>Sin movimientos</p></div></td></tr>
+              <tr><td colspan="5"><div class="empty-state py-2"><i class="fas fa-history"></i><p>Sin movimientos</p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -157,6 +157,10 @@
               <option value="LIQUIDACION">Liquidaci&oacute;n Total</option>
             </select>
           </div>
+          <div class="mb-2">
+            <label class="form-label">M&eacute;todo de Pago <span class="text-danger">*</span></label>
+            <select class="form-select" id="abonoTipoPago" required></select>
+          </div>
         </form>
       </div>
       <div class="modal-footer border-0">
@@ -189,6 +193,10 @@
           <div class="mb-2">
             <label class="form-label">Monto a Abonar <span class="text-danger">*</span></label>
             <input type="number" class="form-control" id="abonoGeneralMonto" step="0.01" min="0.01" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">M&eacute;todo de Pago <span class="text-danger">*</span></label>
+            <select class="form-select" id="abonoGeneralTipoPago" required></select>
           </div>
           <small class="text-muted">El monto se distribuir&aacute; proporcionalmente entre todos los cr&eacute;ditos activos.</small>
         </form>

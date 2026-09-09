@@ -5,8 +5,14 @@ let state = {
 };
 
 export function init() {
+  const today = new Date().toISOString().slice(0, 10);
+  const desdeEl = document.getElementById('filterDesde');
+  const hastaEl = document.getElementById('filterHasta');
+  if (desdeEl) desdeEl.value = today;
+  if (hastaEl) hastaEl.value = today;
   bindEvents();
   cargarSucursales();
+  buscar(0);
 }
 
 function bindEvents() {
@@ -24,17 +30,37 @@ function bindEvents() {
     }
   });
   document.getElementById('tableBody')?.addEventListener('click', (e) => {
+    const kebab = e.target.closest('.kebab-trigger');
+    if (kebab) {
+      e.preventDefault();
+      abrirAccionesVenta(kebab, parseInt(kebab.dataset.venta), kebab.dataset.estado);
+      return;
+    }
     const detalle = e.target.closest('[data-detalle]');
-    if (detalle) { verDetalle(parseInt(detalle.dataset.detalle)); return; }
+    if (detalle) { e.preventDefault(); verDetalle(parseInt(detalle.dataset.detalle)); return; }
     const factura = e.target.closest('[data-factura]');
-    if (factura) { imprimirFactura(parseInt(factura.dataset.factura)); return; }
+    if (factura) { e.preventDefault(); imprimirRemision(parseInt(factura.dataset.factura)); return; }
     const cancelar = e.target.closest('[data-cancelar]');
-    if (cancelar) { solicitarCancelacion(parseInt(cancelar.dataset.cancelar)); return; }
+    if (cancelar) { e.preventDefault(); solicitarCancelacion(parseInt(cancelar.dataset.cancelar)); return; }
     const aprobar = e.target.closest('[data-aprobar]');
-    if (aprobar) { autorizarCancelacion(parseInt(aprobar.dataset.aprobar)); return; }
+    if (aprobar) { e.preventDefault(); autorizarCancelacion(parseInt(aprobar.dataset.aprobar)); return; }
     const rechazar = e.target.closest('[data-rechazar]');
-    if (rechazar) { rechazarCancelacion(parseInt(rechazar.dataset.rechazar)); return; }
+    if (rechazar) { e.preventDefault(); rechazarCancelacion(parseInt(rechazar.dataset.rechazar)); return; }
   });
+}
+
+function abrirAccionesVenta(anchor, id, estado) {
+  const items = [
+    { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verDetalle(id) },
+    { icon: 'fa-print', text: 'Imprimir remisi\u00f3n', color: 'var(--success)', onClick: () => imprimirRemision(id) },
+  ];
+  if (estado === 'COMPLETADA') {
+    items.push({ danger: true, icon: 'fa-ban', text: 'Solicitar cancelaci\u00f3n', onClick: () => solicitarCancelacion(id) });
+  } else if (estado === 'SOLICITADA_CANCELACION') {
+    items.push({ icon: 'fa-check', text: 'Autorizar cancelaci\u00f3n', color: 'var(--success)', onClick: () => autorizarCancelacion(id) });
+    items.push({ icon: 'fa-undo', text: 'Rechazar cancelaci\u00f3n', color: 'var(--warning)', onClick: () => rechazarCancelacion(id) });
+  }
+  Utils.abrirMenuKebab(anchor, items);
 }
 
 async function cargarSucursales() {
@@ -102,16 +128,7 @@ async function buscar(page) {
           : 'bg-secondary';
 
         let acciones = `
-          <button class="btn-action" style="color:var(--primary)" data-detalle="${v.idVenta}" title="Ver detalle"><i class="fas fa-eye"></i></button>
-          <button class="btn-action" style="color:var(--success)" data-factura="${v.idVenta}" title="Imprimir factura"><i class="fas fa-print"></i></button>`;
-
-        if (v.estado === 'COMPLETADA') {
-          acciones += `<button class="btn-action" style="color:var(--danger)" data-cancelar="${v.idVenta}" title="Solicitar cancelaci\u00f3n"><i class="fas fa-ban"></i></button>`;
-        } else if (v.estado === 'SOLICITADA_CANCELACION') {
-          acciones += `
-            <button class="btn-action" style="color:var(--success)" data-aprobar="${v.idVenta}" title="Autorizar cancelaci\u00f3n"><i class="fas fa-check"></i></button>
-            <button class="btn-action" style="color:var(--warning)" data-rechazar="${v.idVenta}" title="Rechazar cancelaci\u00f3n"><i class="fas fa-undo"></i></button>`;
-        }
+          <button type="button" class="btn-kebab-toggle kebab-trigger" data-venta="${v.idVenta}" data-estado="${v.estado}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>`;
 
         return `<tr class="${v.estado === 'CANCELADA' ? 'text-muted' : ''}">
           <td>${v.idVenta}</td>
@@ -200,7 +217,7 @@ async function rechazarCancelacion(id) {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-async function imprimirFactura(id) {
+async function imprimirRemision(id) {
   try {
     const venta = await API.get('/ventas/' + id);
     imprimirTicket(venta);
@@ -212,62 +229,86 @@ function imprimirTicket(venta) {
   const subtotal = venta.subtotal || 0;
   const descuento = venta.descuento || 0;
   const total = venta.total || 0;
-  const detalles = (venta.detalles || []).map(d =>
-    `<tr>
+  const detalles = (venta.detalles || []).map(d => {
+    const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
+    return `<tr>
       <td>${Utils.esc(d.productoNombre || d.descripcion || '')}</td>
-      <td class="right">${d.cantidad}</td>
+      <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
       <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
       <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
-    </tr>`
-  ).join('');
+    </tr>`;
+  }).join('');
 
   const creditHtml = isCredit ? `<div class="section">
     <div class="section-title">Pagar\u00e9 No. ${Utils.esc(venta.folioPagare || '—')}</div>
     <table class="totals">
       <tr><td>Plazo</td><td class="right">${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</td></tr>
       <tr><td>Inter\u00e9s</td><td class="right">${venta.porcentajeInteres || 0}%</td></tr>
+      <tr><td>Total con inter\u00e9s</td><td class="right">$${((venta.total || 0) * (1 + (venta.porcentajeInteres || 0) / 100)).toFixed(2)}</td></tr>
     </table>
   </div>` : '';
 
-  const html = `<html><head><meta charset="utf-8"><title>Factura #${venta.idVenta}</title>
+  const html = `<html><head><meta charset="utf-8"><title>Remisi\u00f3n #${venta.idVenta}</title>
   <style>
+    @page { size: letter; margin: 0.6in; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Consolas', monospace; font-size: 12px; color: #222; width: 302px; margin: 0 auto; padding: 12px 10px; }
-    h3 { text-align: center; letter-spacing: 2px; margin-bottom: 2px; }
-    h4 { text-align: center; font-size: 11px; margin-bottom: 4px; }
-    .center { text-align: center; }
-    .line { border-top: 1px dashed #222; margin: 6px 0; }
-    table { width: 100%; }
-    table.totals tr td { padding: 2px 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; padding: 15px; }
+    .header { text-align: center; padding-bottom: 10px; border-bottom: 3px solid #2563EB; margin-bottom: 14px; }
+    .header h2 { font-size: 22pt; letter-spacing: 2px; margin-bottom: 6px; }
+    .header h4 { font-size: 12pt; font-weight: normal; }
+    .datos { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 10.5pt; }
+    .line { border-top: 1px solid #999; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    table.remision th { background: #2563EB; color: #fff; padding: 6px 8px; font-size: 10pt; }
+    table.remision td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
+    table.remision tr:nth-child(even) td { background: #f5f8ff; }
+    table.totals { width: 280px; float: right; margin-top: 8px; }
+    table.totals tr td { padding: 3px 4px; }
     .right { text-align: right; }
-    .section { margin-top: 8px; }
-    .section-title { font-weight: bold; text-decoration: underline; margin-bottom: 4px; }
-    #factura-caja:focus { outline: none; }
-    .total-final { font-size: 15px; font-weight: bold; }
+    .center { text-align: center; }
+    .section { margin-top: 18px; padding-top: 10px; border-top: 1px solid #999; }
+    .section-title { font-weight: bold; text-decoration: underline; margin-bottom: 6px; }
+    .total-final { font-size: 15pt; font-weight: bold; color: #2563EB; }
+    .footer { clear: both; text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #999; }
+    .firmas { display: flex; justify-content: space-between; margin-top: 50px; }
+    .firma-espacio { width: 200px; text-align: center; }
+    .firma-linea { border-top: 1px solid #222; margin-bottom: 4px; }
   </style></head><body>
-    <h3>BONDS</h3>
-    <h4>${Utils.esc(venta.sucursalNombre || '')}</h4>
-    <div class="center">${Utils.esc(venta.cajaNombre || '')}</div>
-    <div class="center">Fecha: ${Utils.formatDateTime(venta.fecha)}</div>
-    <div class="center">Venta #${venta.idVenta} - ${Utils.esc(venta.usuario || '')}</div>
+    <div class="header">
+      <h2>BONDS</h2>
+      <h4>${Utils.esc(venta.sucursalNombre || '')}</h4>
+      <div>Venta #${venta.idVenta} &mdash; Remisi\u00f3n ${venta.folio ? '(Folio: ' + Utils.esc(venta.folio) + ')' : ''}</div>
+    </div>
+    <div class="datos">
+      <div><strong>Cliente:</strong> ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
+      <div><strong>Fecha:</strong> ${Utils.formatDateTime(venta.fecha)}</div>
+    </div>
+    <div class="datos">
+      <div><strong>Caja:</strong> ${Utils.esc(venta.cajaNombre || '')}</div>
+      <div><strong>Atendido por:</strong> ${Utils.esc(venta.usuario || '')}</div>
+    </div>
     <div class="line"></div>
-    <div>Cliente: ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
-    <div class="line"></div>
-    <table>
-      <thead><tr><th>Producto</th><th class="right">Cant</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead>
+    <table class="remision">
+      <thead><tr><th style="text-align:left">Producto</th><th class="center">Cantidad</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead>
       <tbody>${detalles}</tbody>
     </table>
-    <div class="line"></div>
+    <div style="clear:both"></div>
     <table class="totals">
       <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
       ${descuento > 0 ? `<tr><td>Descuento</td><td class="right">-$${descuento.toFixed(2)}</td></tr>` : ''}
       <tr><td class="total-final">TOTAL</td><td class="right total-final">$${total.toFixed(2)}</td></tr>
     </table>
-    ${isCredit ? '<div class="line"></div>' + creditHtml : ''}
-    <div class="center" style="margin-top:8px">*** Gracias por su compra ***</div>
+    <div style="clear:both"></div>
+    ${isCredit ? creditHtml : ''}
+    <div class="footer">
+      <div class="firmas">
+        <div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div>
+        <div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div>
+      </div>
+    </div>
   </body></html>`;
 
-  const win = window.open('', '_blank', 'width=380,height=600');
+  const win = window.open('', '_blank', 'width=800,height=900');
   if (win) {
     win.document.write(html);
     win.document.close();
@@ -280,14 +321,15 @@ function imprimirTicket(venta) {
 async function verDetalle(id) {
   try {
     const venta = await API.get('/ventas/' + id);
-    const detallesHtml = (venta.detalles || []).map(d =>
-      `<tr>
+    const detallesHtml = (venta.detalles || []).map(d => {
+      const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
+      return `<tr>
         <td>${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
-        <td>${d.cantidad}</td>
-        <td>$${(d.precioUnitario || 0).toFixed(2)}</td>
-        <td>$${(d.subtotal || 0).toFixed(2)}</td>
-      </tr>`
-    ).join('');
+        <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
+        <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
+        <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
 
     const estadoBadge = venta.estado === 'COMPLETADA' ? 'bg-success'
         : venta.estado === 'CANCELADA' ? 'bg-danger'
