@@ -80,7 +80,7 @@ function limpiarBusqueda() {
 function abrirModal(id) {
   state.editingId = id;
   const modal = new bootstrap.Modal(document.getElementById('categoriaModal'));
-  document.getElementById('categoriaModalTitle').textContent = id ? 'Editar Categor&iacute;a' : 'Nueva Categor&iacute;a';
+  document.getElementById('categoriaModalTitle').textContent = id ? 'Editar Categor&iacute;a' : 'Nueva Categoría';
   document.getElementById('formCategoria').reset();
   document.getElementById('categoriaId').value = '';
 
