@@ -88,7 +88,7 @@ async function cargarCategorias() {
     }
     const formSel = document.getElementById('productoCategoria');
     if (formSel) {
-      formSel.innerHTML = '<option value="">Sin categor&iacute;a</option>' +
+      formSel.innerHTML = '<option value="">Seleccionar categor&iacute;a</option>' +
         state.categorias.map(c => `<option value="${c.idCategoria}">${Utils.esc(c.nombre)}</option>`).join('');
     }
   } catch (_) {}
@@ -391,7 +391,7 @@ async function abrirModal(id) {
   document.getElementById('productoMetrosPorRollo').value = '';
   const catSel = document.getElementById('productoCategoria');
   if (catSel) {
-    catSel.innerHTML = '<option value="">Sin categor&iacute;a</option>' +
+    catSel.innerHTML = '<option value="">Seleccionar categor&iacute;a</option>' +
       state.categorias.map(c => `<option value="${c.idCategoria}">${Utils.esc(c.nombre)}</option>`).join('');
   }
 
@@ -502,6 +502,7 @@ async function guardarProducto() {
   };
 
   if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
+  if (!data.idCategoria) { Utils.showToast('La categor\u00eda es obligatoria', 'warning'); return; }
 
   try {
     if (state.editingId) {

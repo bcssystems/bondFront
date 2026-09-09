@@ -152,6 +152,8 @@ function bindEvents() {
     });
   }
 
+  document.getElementById('posFilterCategoria')?.addEventListener('change', () => buscarProductos());
+
   document.getElementById('posCliente')?.addEventListener('change', onPosClienteChange);
 }
 
@@ -242,6 +244,7 @@ async function iniciarPOS() {
   state.reanudandoVentaId = null;
   window.__cajaAbierta = true;
   actualizarSaldoCaja();
+  Utils.cargarOpcionesCategoria('posFilterCategoria', 'Todas las categor&iacute;as');
   cargarClientesSelect('posCliente');
   cargarClientesSelect('posVrCliente');
   cargarPaises('posClientePais');
@@ -501,10 +504,15 @@ async function buscarProductos(showAll) {
 
   try {
     const hasQuery = q.length > 0;
-    const sucursalParam = state.caja?.idSucursal ? '&idSucursal=' + state.caja.idSucursal : '';
+    const caja = state.caja;
+    const cat = document.getElementById('posFilterCategoria')?.value || '';
+    const filtros = [];
+    if (cat) filtros.push('idCategoria=' + cat);
+    if (caja?.idSucursal) filtros.push('idSucursal=' + caja.idSucursal);
+    const filtroStr = filtros.length ? '&' + filtros.join('&') : '';
     const url = hasQuery
-      ? '/productos/para-venta?search=' + encodeURIComponent(q) + '&page=0&size=20' + sucursalParam
-      : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + sucursalParam;
+      ? '/productos/para-venta?search=' + encodeURIComponent(q) + '&page=0&size=20' + filtroStr
+      : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + filtroStr;
     const data = await API.get(url);
     state.productos = data.content || [];
     if (state.productos.length === 0) {

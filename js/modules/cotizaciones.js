@@ -2,6 +2,7 @@ let state = { data: [], clientes: [], productos: [], cart: [], filtro: 'vigentes
 
 export function init() {
   bindEvents();
+  Utils.cargarOpcionesCategoria('cotFilterCategoria', 'Todas');
   cargarCotizaciones();
   cargarClientes();
   cargarSucursales();
@@ -27,6 +28,7 @@ function bindEvents() {
     document.getElementById('cotProductSearch').value = '';
     buscarProductos(true);
   });
+  document.getElementById('cotFilterCategoria')?.addEventListener('change', () => buscarProductos());
   document.getElementById('cotCobraEnvio')?.addEventListener('change', (e) => {
     document.getElementById('cotMontoEnvioWrapper')?.classList.toggle('d-none', !e.target.checked);
     actualizarTotalesCotizacion();
@@ -225,10 +227,14 @@ async function buscarProductos(showAll) {
 
   try {
     const hasQuery = q.length > 0;
-    const sucParam = state.idSucursalSeleccionada ? '&idSucursal=' + state.idSucursalSeleccionada : '';
+    const cat = document.getElementById('cotFilterCategoria')?.value || '';
+    const filtros = [];
+    if (cat) filtros.push('idCategoria=' + cat);
+    if (state.idSucursalSeleccionada) filtros.push('idSucursal=' + state.idSucursalSeleccionada);
+    const filtroStr = filtros.length ? '&' + filtros.join('&') : '';
     const url = hasQuery
-      ? '/productos/para-venta?search=' + encodeURIComponent(q) + '&page=0&size=20' + sucParam
-      : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + sucParam;
+      ? '/productos/para-venta?search=' + encodeURIComponent(q) + '&page=0&size=20' + filtroStr
+      : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + filtroStr;
     const data = await API.get(url);
     state.productos = data.content || [];
     if (state.productos.length === 0) {

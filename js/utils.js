@@ -363,6 +363,19 @@ const Utils = {
     else input.value = '';
   },
 
+  async cargarOpcionesCategoria(selectId, placeholder) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return [];
+    try {
+      const cats = await API.get('/categorias/activas');
+      sel.innerHTML = (placeholder ? '<option value="">' + placeholder + '</option>' : '') +
+        (cats || []).map(c => '<option value="' + c.idCategoria + '">' + Utils.esc(c.nombre) + '</option>').join('');
+      return cats || [];
+    } catch (_) {
+      return [];
+    }
+  },
+
   numeroALetras(value) {
     if (value == null || isNaN(value)) return '';
     const negativo = value < 0;
