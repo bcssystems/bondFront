@@ -66,13 +66,21 @@ const Auth = {
   },
 
   logout() {
+    if (this._loggingOut) return;
+    this._loggingOut = true;
+
     const token = localStorage.getItem('authToken');
     if (token) {
-      API.post('/auth/logout').catch(() => {});
+      fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+      }).catch(() => {});
     }
+
     localStorage.clear();
     Utils.showToast('Sesión cerrada', 'info');
     this.checkAuthStatus();
+    this._loggingOut = false;
   },
 
   checkAuthStatus() {

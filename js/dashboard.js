@@ -1,4 +1,5 @@
 let _sidebarDelegationReady = false;
+let _dashboardEventsReady = false;
 
 function initSidebarDelegation() {
   if (_sidebarDelegationReady) return;
@@ -116,6 +117,9 @@ const Dashboard = {
   },
 
   bindEvents() {
+    if (_dashboardEventsReady) return;
+    _dashboardEventsReady = true;
+
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => Auth.logout());
