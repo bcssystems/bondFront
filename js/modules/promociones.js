@@ -121,8 +121,7 @@ function renderTable() {
       <td class="small text-muted">${vigencia}</td>
       <td><span class="badge-status ${badgeClass}">${badgeText}</span></td>
       <td class="acciones-cell text-end">
-        <button class="btn-action btn-action-edit" data-id="${p.idPromocion}" data-action="edit" title="Editar"><i class="fas fa-edit"></i></button>
-        <button class="btn-action btn-action-delete" data-id="${p.idPromocion}" data-action="delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+        <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${p.idPromocion}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
       </td>
     </tr>`;
   }).join('');
@@ -165,6 +164,17 @@ function renderPagination() {
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const items = [
+      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
+    ];
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);

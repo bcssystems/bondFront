@@ -157,15 +157,25 @@ function renderGastos() {
     <td><span class="badge-status ${badgeClass || 'badge-inactive'}">${g.estado}</span></td>
     <td>${Utils.formatDateTime(g.fechaCreacion)}</td>
     <td class="acciones-cell">
-      ${g.estado === 'PENDIENTE' ? `
-        ${Utils.hasPermiso('GASTOS_AUTORIZAR') ? `<button class="btn-action" style="color:var(--success)" data-id="${g.idGasto}" data-action="autorizar" title="Autorizar"><i class="fas fa-check"></i></button>` : ''}
-        ${Utils.hasPermiso('GASTOS_RECHAZAR') ? `<button class="btn-action" style="color:var(--danger)" data-id="${g.idGasto}" data-action="rechazar" title="Rechazar"><i class="fas fa-times"></i></button>` : ''}
-      ` : '-'}
+      ${g.estado === 'PENDIENTE'
+        ? `<button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${g.idGasto}" title="Acciones" ${(Utils.hasPermiso('GASTOS_AUTORIZAR') || Utils.hasPermiso('GASTOS_RECHAZAR')) ? '' : 'disabled style="opacity:.4"'}><i class="fas fa-ellipsis-v"></i></button>`
+        : '-'}
     </td>
   </tr>`).join('');
 }
 
 function handleGastosClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    if (kebab.disabled) return;
+    const id = parseInt(kebab.dataset.id);
+    const items = [];
+    if (Utils.hasPermiso('GASTOS_AUTORIZAR')) items.push({ icon: 'fa-check', text: 'Autorizar', color: 'var(--success)', onClick: () => confirmarAccionGasto(id, 'autorizar') });
+    if (Utils.hasPermiso('GASTOS_RECHAZAR')) items.push({ danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => confirmarAccionGasto(id, 'rechazar') });
+    if (items.length > 0) Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);

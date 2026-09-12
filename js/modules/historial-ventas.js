@@ -1,3 +1,5 @@
+import { printRemisionVenta } from './printing.js';
+
 let state = {
   page: 0,
   totalPages: 0,
@@ -225,97 +227,18 @@ async function imprimirRemision(id) {
 }
 
 function imprimirTicket(venta) {
-  const isCredit = venta.tipoVenta === 'CREDITO';
-  const subtotal = venta.subtotal || 0;
-  const descuento = venta.descuento || 0;
-  const total = venta.total || 0;
-  const detalles = (venta.detalles || []).map(d => {
-    const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
-    return `<tr>
-      <td>${Utils.esc(d.productoNombre || d.descripcion || '')}</td>
-      <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
-      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-      <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
-    </tr>`;
-  }).join('');
-
-  const creditHtml = isCredit ? `<div class="section">
-    <div class="section-title">Pagar\u00e9 No. ${Utils.esc(venta.folioPagare || '—')}</div>
-    <table class="totals">
-      <tr><td>Plazo</td><td class="right">${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</td></tr>
-      <tr><td>Inter\u00e9s</td><td class="right">${venta.porcentajeInteres || 0}%</td></tr>
-      <tr><td>Total con inter\u00e9s</td><td class="right">$${((venta.total || 0) * (1 + (venta.porcentajeInteres || 0) / 100)).toFixed(2)}</td></tr>
-    </table>
-  </div>` : '';
-
-  const html = `<html><head><meta charset="utf-8"><title>Remisi\u00f3n #${venta.idVenta}</title>
-  <style>
-    @page { size: letter; margin: 0.6in; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; padding: 15px; }
-    .header { text-align: center; padding-bottom: 10px; border-bottom: 3px solid #2563EB; margin-bottom: 14px; }
-    .header h2 { font-size: 22pt; letter-spacing: 2px; margin-bottom: 6px; }
-    .header h4 { font-size: 12pt; font-weight: normal; }
-    .datos { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 10.5pt; }
-    .line { border-top: 1px solid #999; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    table.remision th { background: #2563EB; color: #fff; padding: 6px 8px; font-size: 10pt; }
-    table.remision td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
-    table.remision tr:nth-child(even) td { background: #f5f8ff; }
-    table.totals { width: 280px; float: right; margin-top: 8px; }
-    table.totals tr td { padding: 3px 4px; }
-    .right { text-align: right; }
-    .center { text-align: center; }
-    .section { margin-top: 18px; padding-top: 10px; border-top: 1px solid #999; }
-    .section-title { font-weight: bold; text-decoration: underline; margin-bottom: 6px; }
-    .total-final { font-size: 15pt; font-weight: bold; color: #2563EB; }
-    .footer { clear: both; text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #999; }
-    .firmas { display: flex; justify-content: space-between; margin-top: 50px; }
-    .firma-espacio { width: 200px; text-align: center; }
-    .firma-linea { border-top: 1px solid #222; margin-bottom: 4px; }
-  </style></head><body>
-    <div class="header">
-      <h2>BONDS</h2>
-      <h4>${Utils.esc(venta.sucursalNombre || '')}</h4>
-      <div>Venta #${venta.idVenta} &mdash; Remisi\u00f3n ${venta.folio ? '(Folio: ' + Utils.esc(venta.folio) + ')' : ''}</div>
-    </div>
-    <div class="datos">
-      <div><strong>Cliente:</strong> ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
-      <div><strong>Fecha:</strong> ${Utils.formatDateTime(venta.fecha)}</div>
-    </div>
-    <div class="datos">
-      <div><strong>Caja:</strong> ${Utils.esc(venta.cajaNombre || '')}</div>
-      <div><strong>Atendido por:</strong> ${Utils.esc(venta.usuario || '')}</div>
-    </div>
-    <div class="line"></div>
-    <table class="remision">
-      <thead><tr><th style="text-align:left">Producto</th><th class="center">Cantidad</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead>
-      <tbody>${detalles}</tbody>
-    </table>
-    <div style="clear:both"></div>
-    <table class="totals">
-      <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
-      ${descuento > 0 ? `<tr><td>Descuento</td><td class="right">-$${descuento.toFixed(2)}</td></tr>` : ''}
-      <tr><td class="total-final">TOTAL</td><td class="right total-final">$${total.toFixed(2)}</td></tr>
-    </table>
-    <div style="clear:both"></div>
-    ${isCredit ? creditHtml : ''}
-    <div class="footer">
-      <div class="firmas">
-        <div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div>
-        <div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div>
-      </div>
-    </div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=800,height=900');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-  } else {
-    Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
-  }
+  let configs = {};
+  let clienteInfo = null;
+  (async () => {
+    try {
+      const list = await API.get('/configuraciones');
+      (list || []).forEach(c => { configs[c.clave] = c.valor; });
+    } catch (_) {}
+    if (venta.idCliente) {
+      try { clienteInfo = await API.get('/clientes/' + venta.idCliente); } catch (_) {}
+    }
+    printRemisionVenta(venta, { configs, clienteInfo, copies: 1 });
+  })();
 }
 
 async function verDetalle(id) {
@@ -349,7 +272,14 @@ async function verDetalle(id) {
           <div class="col-4"><strong>Subtotal:</strong> $${(venta.subtotal || 0).toFixed(2)}</div>
           <div class="col-4"><strong>Descuento:</strong> $${(venta.descuento || 0).toFixed(2)}</div>
           <div class="col-4"><strong>Estado:</strong> <span class="badge ${estadoBadge}">${venta.estado}</span></div>
-          ${venta.folioPagare ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare)}</div>` : ''}
+          ${venta.tipoVenta === 'CREDITO'
+            ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
+               <div class="col-4"><strong>Inter\u00e9s:</strong> ${venta.porcentajeInteres || 0}%</div>
+               <div class="col-4"><strong>Plazo:</strong> ${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</div>`
+            : ''}
+          ${(venta.pagos || []).length
+            ? `<div class="col-12"><strong>Forma de pago:</strong> ${venta.pagos.map(p => Utils.esc(p.tipoPagoNombre || '') + ' $' + (p.monto || 0).toFixed(2) + (p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : '')).join(' &middot; ')}</div>`
+            : ''}
           ${motivoHtml}
       <table class="table table-sm table-custom mb-0">
         <thead><tr><th>Producto</th><th>Cant</th><th>P/U</th><th>Subtotal</th></tr></thead>

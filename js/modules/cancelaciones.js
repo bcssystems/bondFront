@@ -64,15 +64,26 @@ function renderTable() {
     <td style="max-width:220px">${Utils.esc(v.motivoCancelacion || '-')}</td>
     <td>${Utils.formatDateTime(v.fechaSolicitudCancelacion)}</td>
     <td class="acciones-cell">
-      <button class="btn-action" style="color:var(--primary)" data-action="ver" data-id="${v.idVenta}" title="Ver detalle"><i class="fas fa-eye"></i></button>
-      ${Utils.hasPermiso('CANCELACIONES_AUTORIZAR') ? `
-      <button class="btn-action" style="color:var(--success)" data-action="autorizar" data-id="${v.idVenta}" title="Autorizar cancelaci\u00f3n"><i class="fas fa-check"></i></button>
-      <button class="btn-action" style="color:var(--warning)" data-action="rechazar" data-id="${v.idVenta}" title="Rechazar cancelaci\u00f3n"><i class="fas fa-undo"></i></button>` : ''}
+      <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${v.idVenta}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
   </tr>`).join('');
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const items = [
+      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verDetalle(id) },
+    ];
+    if (Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+      items.push({ icon: 'fa-check', text: 'Autorizar cancelaci\u00f3n', color: 'var(--success)', onClick: () => autorizar(id) });
+      items.push({ icon: 'fa-undo', text: 'Rechazar solicitud', color: 'var(--warning)', onClick: () => rechazar(id) });
+    }
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);

@@ -59,10 +59,7 @@ function renderTable() {
       <td>${r.esSistema ? '<span class="badge bg-secondary text-white">Sistema</span>' : '<span class="badge bg-success text-white">Personalizado</span>'}</td>
       <td><span class="badge-status ${r.activo === false ? 'badge-inactive' : 'badge-active'}">${r.activo === false ? 'Inactivo' : 'Activo'}</span></td>
       <td class="acciones-cell">
-        ${r.activo === false && !r.esSistema
-          ? `<button class="btn-action btn-action-reactivate" data-id="${r.idRol}" data-action="reactivate" title="Reactivar"><i class="fas fa-undo"></i></button>`
-          : `<button class="btn-action btn-action-edit" data-id="${r.idRol}" data-action="edit" title="Editar" ${r.esSistema ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
-             <button class="btn-action btn-action-delete" data-id="${r.idRol}" data-action="delete" title="Desactivar" ${r.esSistema ? 'disabled' : ''}><i class="fas fa-trash"></i></button>`}
+        <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${r.idRol}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
       </td>
     </tr>`;
   }).join('');
@@ -73,6 +70,12 @@ function buscarRol(id) {
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    abrirAccionesRol(kebab, parseInt(kebab.dataset.id));
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn || btn.disabled) return;
   const id = parseInt(btn.dataset.id);
@@ -81,6 +84,31 @@ function handleTableClick(e) {
   if (btn.dataset.action === 'edit') abrirModal(id);
   else if (btn.dataset.action === 'delete') confirmarEliminar(id);
   else if (btn.dataset.action === 'reactivate') reactivarRol(id);
+}
+
+function abrirAccionesRol(anchor, id) {
+  const rol = buscarRol(id);
+  const activo = !rol || rol.activo !== false;
+  const items = [
+    { icon: 'fa-eye', text: 'Ver permisos', color: 'var(--info)', onClick: () => verRol(id) },
+    ...(!rol || rol.esSistema ? [] : [
+      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+      activo
+        ? { danger: true, icon: 'fa-trash', text: 'Desactivar', onClick: () => confirmarEliminar(id) }
+        : { icon: 'fa-undo', text: 'Reactivar', color: 'var(--success)', onClick: () => reactivarRol(id) },
+    ]),
+  ];
+  Utils.abrirMenuKebab(anchor, items);
+}
+
+function verRol(id) {
+  const rol = buscarRol(id);
+  if (!rol) return;
+  const badges = (rol.permisos || []).map(p =>
+    `<span class="badge bg-primary text-white me-1 mb-1">${Utils.esc(p)}</span>`).join('');
+  const desc = rol.descripcion ? '<p class="text-muted mb-2">' + Utils.esc(rol.descripcion) + '</p>' : '';
+  Utils.showDialog('Permisos del rol: ' + Utils.esc(rol.nombre),
+    '<div class="small">' + desc + '<div>' + (badges || '<span class="text-muted">Sin permisos</span>') + '</div></div>');
 }
 
 function permisoIdsSeleccionados() {

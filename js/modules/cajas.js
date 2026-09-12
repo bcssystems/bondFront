@@ -58,20 +58,33 @@ function renderTable() {
       <td><span class="badge-status ${activa ? 'badge-active' : 'badge-inactive'}">${c.estado}</span></td>
       <td>${Utils.formatDateTime(c.fechaApertura)}</td>
       <td class="acciones-cell">
-        <button class="btn-action btn-action-edit" data-id="${c.idCaja}" title="Editar"><i class="fas fa-edit"></i></button>
-        ${c.estado === 'ABIERTA' ? `
-          <button class="btn-action" style="color:var(--danger)" data-id="${c.idCaja}" data-action="cerrar" title="Cerrar Caja"><i class="fas fa-lock"></i></button>
-          <button class="btn-action" style="color:var(--info)" data-id="${c.idCaja}" data-action="corte-preview" title="Corte"><i class="fas fa-calculator"></i></button>
-        ` : `
-          <button class="btn-action" style="color:var(--success)" data-id="${c.idCaja}" data-action="abrir" title="Abrir Caja"><i class="fas fa-unlock"></i></button>
-        `}
-        <button class="btn-action btn-action-delete" data-id="${c.idCaja}" title="Eliminar"><i class="fas fa-trash"></i></button>
+        <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCaja}" data-estado="${c.estado}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
       </td>
     </tr>`;
   }).join('');
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const estado = kebab.dataset.estado;
+    const abierta = estado === 'ABIERTA';
+    const items = [
+      { icon: 'fa-exchange-alt', text: 'Ver movimientos', color: 'var(--info)', onClick: () => verMovimientos(id) },
+      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+      ...(abierta ? [
+        { icon: 'fa-calculator', text: 'Corte', color: 'var(--warning)', onClick: () => previewCorte(id) },
+        { danger: true, icon: 'fa-lock', text: 'Cerrar caja', onClick: () => cerrarCaja(id) },
+      ] : [
+        { icon: 'fa-unlock', text: 'Abrir caja', color: 'var(--success)', onClick: () => abrirAperturaModal(id) },
+      ]),
+      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
+    ];
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);

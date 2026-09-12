@@ -78,16 +78,26 @@ function renderTable() {
       <td><span class="badge-status ${badgeClass}">${g.estado}</span></td>
       <td>${Utils.formatDateTime(g.fechaCreacion)}</td>
       <td class="acciones-cell">
-        ${g.estado === 'PENDIENTE' ? `
-          <button class="btn-action" style="color:var(--success)" data-id="${g.idGasto}" data-action="autorizar" title="Autorizar"><i class="fas fa-check"></i></button>
-          <button class="btn-action" style="color:var(--danger)" data-id="${g.idGasto}" data-action="rechazar" title="Rechazar"><i class="fas fa-times"></i></button>
-        ` : '-'}
+        ${g.estado === 'PENDIENTE'
+          ? `<button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${g.idGasto}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>`
+          : '-'}
       </td>
     </tr>`;
   }).join('');
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const items = [
+      { icon: 'fa-check', text: 'Autorizar', color: 'var(--success)', onClick: () => confirmarAccion(id, 'autorizar') },
+      { danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => confirmarAccion(id, 'rechazar') },
+    ];
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);

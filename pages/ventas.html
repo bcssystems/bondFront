@@ -462,3 +462,40 @@
     </div>
   </div>
 </div>
+
+  <div class="modal fade" id="abonoPOSModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-money-check-dollar me-1"></i> Abono a Cr&eacute;dito (POS)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small fw-semibold">Cliente</label>
+        <div class="mb-2" id="abonoPOSClienteName" style="font-size:0.95rem">&mdash;</div>
+        <div class="mb-3">
+          <label class="form-label small">Cr&eacute;dito</label>
+          <select class="form-select form-select-sm" id="abonoPOSCredito"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">Monto</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="abonoPOSMonto" step="0.01" min="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">Forma de pago</label>
+          <select class="form-select form-select-sm" id="abonoPOSTipoPago"></select>
+        </div>
+        <p class="small text-muted mb-0">El abono registra ingreso a: <strong id="abonoPOSCajaInfo">&mdash;</strong></p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarAbonoPOS">
+          <i class="fas fa-check me-1"></i> Registrar Abono
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

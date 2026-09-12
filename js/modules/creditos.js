@@ -1,3 +1,5 @@
+import { printRemisionVenta, printEstadoCuenta } from './printing.js';
+
 let state = {
   clientes: [],
   selectedClienteId: null,
@@ -25,7 +27,6 @@ function bindEvents() {
       cargarClientesCredito();
     });
   });
-  document.getElementById('tableCreditosClientesBody')?.addEventListener('click', handleClienteClick);
   document.getElementById('tableCreditosBody')?.addEventListener('click', handleCreditoClick);
   document.getElementById('btnCerrarDetalle')?.addEventListener('click', cerrarDetalle);
   document.getElementById('creditoDetalleModal')?.addEventListener('hidden.bs.modal', () => {
@@ -74,7 +75,29 @@ async function cargarClientesCredito() {
       return true;
     });
     renderClientes();
+    procesarIntentoCreditoCliente();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function procesarIntentoCreditoCliente() {
+  const raw = localStorage.getItem('creditosParaCliente');
+  if (!raw) return;
+  localStorage.removeItem('creditosParaCliente');
+  const id = parseInt(raw);
+  if (!id) return;
+  let cliente = state.clientes.find(c => c.idCliente === id);
+  if (!cliente) {
+    try { cliente = await API.get('/clientes/' + id); } catch (_) { cliente = null; }
+  }
+  if (cliente) {
+    if (!state.clientes.some(c => c.idCliente === id)) {
+      state.clientes.unshift(cliente);
+      renderClientes();
+    }
+    seleccionarCliente(id);
+  } else {
+    Utils.showToast('No se encontr\u00f3 el cliente', 'warning');
+  }
 }
 
 function renderClientes() {
@@ -88,22 +111,52 @@ function renderClientes() {
 
   tbody.innerHTML = state.clientes.map(c => {
     const disponible = (c.limiteCredito || 0) - (c.saldoActual || 0);
-    return `<tr class="credito-cliente-row" data-id="${c.idCliente}" style="cursor:pointer">
+    return `<tr class="credito-cliente-row" data-id="${c.idCliente}">
       <td><span class="fw-semibold">${Utils.esc(c.nombre)} ${Utils.esc(c.apellidoPaterno || '')}</span></td>
       <td>${Utils.esc(c.telefono) || '-'}</td>
       <td class="text-end">$${(c.limiteCredito || 0).toFixed(2)}</td>
       <td class="text-end fw-semibold ${(c.saldoActual || 0) > 0 ? 'text-danger' : 'text-success'}">$${(c.saldoActual || 0).toFixed(2)}</td>
       <td class="text-end">$${Math.max(0, disponible).toFixed(2)}</td>
-      <td><button class="btn btn-sm btn-outline-primary px-3 ver-creditos-btn" data-id="${c.idCliente}"><i class="fas fa-eye me-1"></i>Ver</button></td>
+      <td>
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-sm btn-outline-primary px-3 kebab-toggle-cliente" data-id="${c.idCliente}" title="Acciones">
+            <i class="fas fa-ellipsis-h"></i>
+          </button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
-}
 
-function handleClienteClick(e) {
-  const btn = e.target.closest('.ver-creditos-btn');
-  const row = e.target.closest('.credito-cliente-row');
-  const id = btn?.dataset?.id || row?.dataset?.id;
-  if (id) seleccionarCliente(parseInt(id));
+  tbody.querySelectorAll('.kebab-toggle-cliente').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const cliente = state.clientes.find(x => x.idCliente === id);
+      const items = [
+        { icon: 'fas fa-file-invoice', label: 'Estado de cuenta', action: 'estado-cuenta' },
+        { icon: 'fas fa-list', label: 'Cr\u00e9ditos pendientes', action: 'creditos' },
+        { icon: 'fas fa-money-bill-wave', label: 'Abonar', action: 'abonar' },
+        { icon: 'fas fa-cash-register', label: 'Abonar en POS', action: 'abonar-pos' },
+      ];
+      Utils.abrirMenuKebab(btn, items.map(it => ({
+        ...it,
+        onClick: () => {
+          if (it.action === 'estado-cuenta' || it.action === 'creditos') seleccionarCliente(id);
+          else if (it.action === 'abonar') {
+            state.selectedClienteId = id;
+            abrirAbonoGeneralModal();
+          } else if (it.action === 'abonar-pos') {
+            localStorage.setItem('abonoParaPOS', JSON.stringify({
+              idCliente: id,
+              nombre: (cliente?.nombre || '') + ' ' + (cliente?.apellidoPaterno || ''),
+            }));
+            Utils.showToast('Abriendo POS para registrar el abono', 'info');
+            document.querySelector('[data-view="pages/ventas.html"]')?.click();
+          }
+        },
+      })));
+    });
+  });
 }
 
 async function seleccionarCliente(id) {
@@ -309,103 +362,17 @@ async function reimprimirVenta(idVenta) {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-function imprimirRemision(venta) {
-  const isCredit = venta.tipoVenta === 'CREDITO';
-  const subtotal = venta.subtotal || 0;
-  const descuento = venta.descuento || 0;
-  const total = venta.total || 0;
-  const detalles = (venta.detalles || []).map(d => {
-    const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
-    return `<tr>
-      <td>${Utils.esc(d.productoNombre || d.descripcion || '')}</td>
-      <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
-      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-      <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
-    </tr>`;
-  }).join('');
-
-  const notaHtml = venta.nota
-    ? `<div class="section"><div class="section-title">Nota de la venta</div><p>${Utils.esc(venta.nota)}</p></div>`
-    : '';
-
-  const creditHtml = isCredit ? `<div class="section">
-    <div class="section-title">Pagar\u00e9 No. ${Utils.esc(venta.folioPagare || '—')}</div>
-    <table class="totals">
-      <tr><td>Plazo</td><td class="right">${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</td></tr>
-      <tr><td>Inter\u00e9s</td><td class="right">${venta.porcentajeInteres || 0}%</td></tr>
-      <tr><td>Total con inter\u00e9s</td><td class="right">$${((venta.total || 0) * (1 + (venta.porcentajeInteres || 0) / 100)).toFixed(2)}</td></tr>
-    </table>
-  </div>` : '';
-
-  const html = `<html><head><meta charset="utf-8"><title>Remisi\u00f3n #${venta.idVenta}</title>
-  <style>
-    @page { size: letter; margin: 0.6in; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #222; padding: 15px; }
-    .header { text-align: center; padding-bottom: 10px; border-bottom: 3px solid #2563EB; margin-bottom: 14px; }
-    .header h2 { font-size: 22pt; letter-spacing: 2px; margin-bottom: 6px; }
-    .header h4 { font-size: 12pt; font-weight: normal; }
-    .datos { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 10.5pt; }
-    .line { border-top: 1px solid #999; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    table.remision th { background: #2563EB; color: #fff; padding: 6px 8px; font-size: 10pt; }
-    table.remision td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
-    table.remision tr:nth-child(even) td { background: #f5f8ff; }
-    table.totals { width: 280px; float: right; margin-top: 8px; }
-    table.totals tr td { padding: 3px 4px; }
-    .right { text-align: right; }
-    .center { text-align: center; }
-    .section { margin-top: 18px; padding-top: 10px; border-top: 1px solid #999; }
-    .section-title { font-weight: bold; text-decoration: underline; margin-bottom: 6px; }
-    .total-final { font-size: 15pt; font-weight: bold; color: #2563EB; }
-    .footer { clear: both; text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #999; }
-    .firmas { display: flex; justify-content: space-between; margin-top: 50px; }
-    .firma-espacio { width: 200px; text-align: center; }
-    .firma-linea { border-top: 1px solid #222; margin-bottom: 4px; }
-  </style></head><body>
-    <div class="header">
-      <h2>BONDS</h2>
-      <h4>${Utils.esc(venta.sucursalNombre || '')}</h4>
-      <div>Venta #${venta.idVenta} &mdash; Remisi\u00f3n ${venta.folio ? '(Folio: ' + Utils.esc(venta.folio) + ')' : ''}</div>
-    </div>
-    <div class="datos">
-      <div><strong>Cliente:</strong> ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
-      <div><strong>Fecha:</strong> ${Utils.formatDateTime(venta.fecha)}</div>
-    </div>
-    <div class="datos">
-      <div><strong>Caja:</strong> ${Utils.esc(venta.cajaNombre || '')}</div>
-      <div><strong>Atendido por:</strong> ${Utils.esc(venta.usuario || '')}</div>
-    </div>
-    <div class="line"></div>
-    <table class="remision">
-      <thead><tr><th style="text-align:left">Producto</th><th class="center">Cantidad</th><th class="right">P/U</th><th class="right">Subtotal</th></tr></thead>
-      <tbody>${detalles}</tbody>
-    </table>
-    <div style="clear:both"></div>
-    <table class="totals">
-      <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
-      ${descuento > 0 ? `<tr><td>Descuento</td><td class="right">-$${descuento.toFixed(2)}</td></tr>` : ''}
-      <tr><td class="total-final">TOTAL</td><td class="right total-final">$${total.toFixed(2)}</td></tr>
-    </table>
-    <div style="clear:both"></div>
-    ${notaHtml}
-    ${creditHtml}
-    <div class="footer">
-      <div class="firmas">
-        <div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div>
-        <div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div>
-      </div>
-    </div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=800,height=900');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-  } else {
-    Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
+async function imprimirRemision(venta) {
+  let configs = {};
+  let clienteInfo = null;
+  try {
+    const list = await API.get('/configuraciones');
+    (list || []).forEach(c => { configs[c.clave] = c.valor; });
+  } catch (_) {}
+  if (venta.idCliente) {
+    try { clienteInfo = await API.get('/clientes/' + venta.idCliente); } catch (_) {}
   }
+  printRemisionVenta(venta, { configs, clienteInfo, copies: 1 });
 }
 
 function verNotaVenta(credito) {
@@ -434,99 +401,23 @@ async function imprimirEstadoCuenta() {
   } catch (_) {}
 
   const totalPendiente = (state.creditos || []).reduce((s, c) => s + (c.saldoPendiente || 0), 0);
-
-  const creditosRows = (state.creditos || []).map(c => `<tr>
-    <td>${c.idCredito}</td>
-    <td>#${c.folio || ''}</td>
-    <td class="right">$${(c.montoOriginal || 0).toFixed(2)}</td>
-    <td class="right">$${(c.saldoPendiente || 0).toFixed(2)}</td>
-  </tr>`).join('');
-
-  const creditosById = {};
-  (state.creditos || []).forEach(c => { creditosById[c.idCredito] = c; });
-
-  const movimientos = [...state.movimientos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  const movRows = (movimientos || []).map(m => {
-    const c = creditosById[m.idCredito];
-    const estado = estadoCreditoInfo(c);
-    const folio = c ? (c.folio || ('#' + c.idCredito)) : '&mdash;';
-    const venta = c ? ('#' + (c?.folioVenta || c?.idVenta || '')) : '&mdash;';
-    const tipo = m.tipo === 'CARGO' ? 'Cargo'
-      : m.tipo === 'ABONO' ? 'Abono'
-      : m.tipo === 'LIQUIDACION' ? 'Liquidaci\u00f3n' : m.tipo;
-    return `<tr>
-      <td>${Utils.esc(folio)}</td>
-      <td>${Utils.esc(venta)}</td>
-      <td>${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
-      <td>${tipo}</td>
-      <td class="right">$${(m.monto || 0).toFixed(2)}</td>
-      <td>${estado.text}</td>
-      <td class="right">$${(m.saldoNuevo || 0).toFixed(2)}</td>
-    </tr>`;
-  }).join('');
+  const tasaMora = detallesEstado.tasaInteresMora != null
+    ? detallesEstado.tasaInteresMora
+    : parseFloat(configs['tasaInteresMoraPagare']);
 
   const notas = (state.creditos || [])
     .map(c => ({ nota: (c.nota || '').trim(), fecha: c.fechaCreacion }))
-    .filter(n => n.nota)
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  const notasHtml = notas.length
-    ? '<ol>' + notas.map(n => '<li>' + Utils.esc(n.nota) + '</li>').join('') + '</ol>'
-    : '<div style="text-align:center;font-size:11px">Sin notas de ventas</div>';
+    .filter(n => n.nota);
 
-  const html = `<html><head><meta charset="utf-8"><title>Estado de Cuenta</title>
-  <style>
-    body { font-family: 'Consolas', monospace; font-size: 12px; color: #222; width: 620px; margin: 0 auto; padding: 16px; }
-    h2 { text-align: center; letter-spacing: 2px; margin-bottom: 2px; }
-    .sub { text-align: center; font-size: 11px; margin-bottom: 4px; }
-    h3 { text-align: center; margin: 6px 0; }
-    .line { border-top: 1px dashed #222; margin: 8px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 4px 6px; border: 1px solid #999; font-size: 11px; }
-    th { background: #eee; text-align: center; }
-    .right { text-align: right; }
-    .info { display: flex; justify-content: space-between; margin: 4px 0; }
-    .total { font-size: 14px; font-weight: bold; }
-    .firma { margin-top: 60px; text-align: center; }
-    @media print { body { width: auto; } }
-  </style></head><body>
-    <h2>BONDS</h2>
-    <div class="sub">${Utils.esc(configs['descripcionEmpresa'] || '')}</div>
-    <div class="sub">${Utils.esc(configs['direccionEmpresa'] || '')}</div>
-    <div class="sub">Titular: ${Utils.esc(configs['titularPagare'] || '')}</div>
-    <h3>ESTADO DE CUENTA</h3>
-    <div class="line"></div>
-    <div class="info"><span><strong>Cliente:</strong> ${Utils.esc(cliente.nombre + ' ' + (cliente.apellidoPaterno || ''))}</span></div>
-    <div class="info"><span><strong>Tel\u00e9fono:</strong> ${Utils.esc(cliente.telefono || '-')}</span><span><strong>Deuda total:</strong> <span class="total">$${totalPendiente.toFixed(2)}</span></span></div>
-    <div class="info"><span><strong>L\u00edmite de cr\u00e9dito:</strong> $${(cliente.limiteCredito || 0).toFixed(2)}</span><span><strong>Tasa de mora mensual:</strong> ${detallesEstado.tasaInteresMora != null ? detallesEstado.tasaInteresMora + '%' : configs['tasaInteresMoraPagare'] + '%'}</span></div>
-    <div class="info"><span>Fecha: ${new Date().toLocaleDateString()}</span></div>
-    <div class="line"></div>
-    <h3 style="text-align:left;font-size:12px">Cr\u00e9ditos</h3>
-    <table>
-      <thead><tr><th>#</th><th>Pagar\u00e9</th><th class="right">Original</th><th class="right">Pendiente</th></tr></thead>
-      <tbody>${creditosRows}</tbody>
-    </table>
-    <div class="line"></div>
-    <h3 style="text-align:left;font-size:12px">Movimientos</h3>
-    <table>
-      <thead><tr><th>Folio</th><th>Venta</th><th>Fecha</th><th>Tipo de movimiento</th><th class="right">Cantidad</th><th>Estado</th><th class="right">Lo que falta</th></tr></thead>
-      <tbody>${movRows || '<tr><td colspan="7" style="text-align:center">Sin movimientos</td></tr>'}</tbody>
-    </table>
-    <div class="line"></div>
-    <h3 style="text-align:left;font-size:12px">Notas de ventas</h3>
-    ${notasHtml}
-    <div class="firma">____________________________________<br>Firma del cliente</div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=680,height=700');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-  } else {
-    Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
-    return;
-  }
-  setTimeout(() => { win.print(); }, 300);
+  printEstadoCuenta({
+    cliente,
+    configs,
+    creditos: state.creditos || [],
+    movimientos: state.movimientos || [],
+    notas,
+    totalPendiente,
+    tasaMora,
+  });
 }
 
 async function confirmarAbono() {

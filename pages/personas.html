@@ -9,6 +9,14 @@
     </button>
   </div>
 
+  <div class="filter-bar">
+    <div style="width:100%"></div>
+    <div class="form-check ms-2 mt-2">
+      <input type="checkbox" class="form-check-input" id="verPersonasInactivas">
+      <label class="form-check-label small" for="verPersonasInactivas">Ver inactivos</label>
+    </div>
+  </div>
+
   <div class="panel-card overflow-hidden">
     <div class="table-responsive">
       <table class="table table-custom mb-0">
@@ -84,6 +92,36 @@
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarPersona">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="personaDetalleModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-user-shield me-1" style="color:var(--primary)"></i> Detalle del Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="panel-card mb-0">
+              <div id="personaDetalleInfo" class="small"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="panel-card mb-0">
+              <h6 class="fw-semibold mb-2"><i class="fas fa-key me-1"></i> Permisos del rol</h6>
+              <div id="personaDetallePermisos" class="small" style="max-height:220px;overflow-y:auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnDetalleEditarPersona"><i class="fas fa-edit me-1"></i> Editar</button>
       </div>
     </div>
   </div>

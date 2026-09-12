@@ -1,4 +1,4 @@
-let state = { data: [], currentPage: 0, totalPages: 0, pageSize: 10, editingId: null };
+let state = { data: [], currentPage: 0, totalPages: 0, pageSize: 10, editingId: null, verInactivas: false, detallePersonaId: null };
 let roles = [];
 let permisosPorModulo = {};
 
@@ -14,6 +14,16 @@ function bindEvents() {
   document.getElementById('tablePersonasBody')?.addEventListener('click', handleTableClick);
   document.getElementById('personaPermisosAdicionales')?.addEventListener('change', e => {
     if (e.target.classList.contains('permiso-modulo-check')) seleccionarModuloPermiso(e.target);
+  });
+  document.getElementById('verPersonasInactivas')?.addEventListener('change', e => {
+    state.verInactivas = e.target.checked;
+    cargarPersonas(0);
+  });
+  document.getElementById('btnDetalleEditarPersona')?.addEventListener('click', () => {
+    if (state.detallePersonaId) {
+      new bootstrap.Modal(document.getElementById('personaDetalleModal'))?.hide();
+      abrirModal(state.detallePersonaId);
+    }
   });
 }
 
@@ -48,7 +58,8 @@ function permisosDelRol(idRol) {
 async function cargarPersonas(page) {
   state.currentPage = page;
   try {
-    const result = await API.get('/personas?page=' + page + '&size=' + state.pageSize + '&sort=idPersona,DESC');
+    const activaParam = state.verInactivas ? '' : '&activa=true';
+    const result = await API.get('/personas?page=' + page + '&size=' + state.pageSize + '&sort=idPersona,DESC' + activaParam);
     state.data = result.content;
     state.totalPages = result.totalPages;
     renderTable();
@@ -72,8 +83,7 @@ function renderTable() {
     <td>${Utils.formatDate(p.fechaRegistro)}</td>
     <td><span class="badge-status ${p.activa ? 'badge-active' : 'badge-inactive'}">${p.activa ? 'Activo' : 'Inactivo'}</span></td>
     <td class="acciones-cell">
-      <button class="btn-action btn-action-edit" data-id="${p.idPersona}" data-action="edit" title="Editar"><i class="fas fa-edit"></i></button>
-      <button class="btn-action btn-action-delete" data-id="${p.idPersona}" data-action="delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+      <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${p.idPersona}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
   </tr>`).join('');
 }
@@ -105,11 +115,89 @@ function renderPagination() {
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    abrirAccionesPersona(kebab, parseInt(kebab.dataset.id));
+    return;
+  }
   const btn = e.target.closest('.btn-action');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);
   if (btn.dataset.action === 'edit') abrirModal(id);
   else if (btn.dataset.action === 'delete') confirmarEliminar(id);
+}
+
+function abrirAccionesPersona(anchor, id) {
+  const p = (state.data || []).find(x => x.idPersona === id);
+  const activa = !p || p.activa !== false;
+  const items = [
+    { icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetallePersona(id) },
+    { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+    activa
+      ? { danger: true, icon: 'fa-user-slash', text: 'Desactivar', onClick: () => confirmarEliminar(id) }
+      : { icon: 'fa-user-check', text: 'Reactivar', color: 'var(--success)', onClick: () => reactivarPersona(id) },
+  ];
+  Utils.abrirMenuKebab(anchor, items);
+}
+
+function abrirDetallePersona(id) {
+  const p = (state.data || []).find(x => x.idPersona === id);
+  if (!p) { Utils.showToast('Usuario no encontrado', 'warning'); return; }
+  state.detallePersonaId = id;
+
+  const info = '<div class="mb-1"><span class="text-muted">Nombre:</span> <strong>' + Utils.esc(p.nombre + ' ' + p.apellido) + '</strong></div>' +
+    '<div class="mb-1"><span class="text-muted">Usuario:</span> ' + Utils.esc(p.usuario) + '</div>' +
+    '<div class="mb-1"><span class="text-muted">Rol base:</span> ' + Utils.esc(p.rol && p.rol.nombre ? p.rol.nombre : '-') + '</div>' +
+    '<div class="mb-1"><span class="text-muted">Registro:</span> ' + (p.fechaRegistro ? Utils.formatDateTime(p.fechaRegistro) : '-') + '</div>' +
+    '<div class="mb-0"><span class="text-muted">Estado:</span> ' + (p.activa === false ? '<span class="text-danger">Inactivo</span>' : '<span class="text-success">Activo</span>') + '</div>';
+  document.getElementById('personaDetalleInfo').innerHTML = info;
+
+  const basePermisos = permisosDelRol(p.rol ? p.rol.idRol : null);
+  const permisosMap = {};
+  Object.values(permisosPorModulo || {}).forEach(list => {
+    (list || []).forEach(perm => { permisosMap[perm.idPermiso] = perm; });
+  });
+  const listaPermisos = basePermisos.map(clave => {
+    const perm = Object.values(permisosMap).find(x => x.clave === clave);
+    return { nombre: perm ? perm.nombre : clave, adicional: false };
+  });
+  (p.permisosAdicionales || []).forEach(idp => {
+    const perm = permisosMap[Number(idp)];
+    if (perm && !listaPermisos.some(l => l.nombre === perm.nombre)) {
+      listaPermisos.push({ nombre: perm.nombre, adicional: true });
+    }
+  });
+  if (listaPermisos.length === 0) {
+    document.getElementById('personaDetallePermisos').innerHTML = '<span class="text-muted">Sin permisos adicionales</span>';
+    return;
+  }
+  document.getElementById('personaDetallePermisos').innerHTML = listaPermisos.map(l =>
+    '<div class="mb-1 d-flex align-items-center gap-2">' +
+    (l.adicional ? '<span class="badge bg-success" style="font-size:0.65rem">adicional</span>' : '<span class="badge bg-secondary" style="font-size:0.65rem">rol</span>') +
+    '<span>' + Utils.esc(l.nombre) + '</span></div>').join('');
+
+  new bootstrap.Modal(document.getElementById('personaDetalleModal')).show();
+}
+
+async function reactivarPersona(id) {
+  const p = (state.data || []).find(x => x.idPersona === id);
+  if (!p) return;
+  const confirmed = await Utils.confirmAction('Reactivar este usuario?', 'Confirmar', 'Reactivar');
+  if (!confirmed) return;
+  try {
+    await API.put('/personas/' + id, {
+      nombre: p.nombre || '',
+      apellido: p.apellido || '',
+      usuario: p.usuario || '',
+      password: '',
+      idRol: p.rol ? p.rol.idRol : null,
+      permisosAdicionales: p.permisosAdicionales || [],
+      activa: true,
+    });
+    Utils.showToast('Usuario reactivado', 'success');
+    cargarPersonas(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 function renderPermisosAdicionales(idRol, seleccionados) {

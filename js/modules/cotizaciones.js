@@ -85,6 +85,22 @@ function getStockSucursal(producto) {
 }
 
 function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const c = state.data.find(x => x.idCotizacion === id);
+    const vigente = c && c.estado === 'VIGENTE';
+    const items = [
+      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verDetalle(id) },
+    ];
+    if (vigente) {
+      items.push({ icon: 'fa-cash-register', text: 'Ir a Caja', color: 'var(--success)', onClick: () => irACaja(id) });
+      items.push({ danger: true, icon: 'fa-ban', text: 'Cancelar', onClick: () => abrirCancelar(id) });
+    }
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);
@@ -132,15 +148,8 @@ function renderTable() {
     const envioText = c.cobraEnvio ? '$' + c.montoEnvio.toFixed(2) : '-';
     const expiracion = c.fechaExpiracion ? new Date(c.fechaExpiracion).toLocaleDateString('es-MX') : '-';
     const creacion = c.fechaCreacion ? new Date(c.fechaCreacion).toLocaleDateString('es-MX') : '-';
-    const vigente = c.estado === 'VIGENTE';
     const tipoVenta = c.tipoVenta || 'CONTADO';
     const tipoBadge = tipoVenta === 'CREDITO' ? ' <span class="badge bg-info" style="font-size:0.6rem">CR&Eacute;DITO</span>' : '';
-
-    let acciones = '<button class="btn btn-outline-info btn-sm ripple" data-action="ver" data-id="' + c.idCotizacion + '" title="Ver detalle"><i class="fas fa-eye"></i></button>';
-    if (vigente) {
-      acciones += '<button class="btn btn-outline-success btn-sm ripple" data-action="ir-a-caja" data-id="' + c.idCotizacion + '" title="Ir a Caja"><i class="fas fa-cash-register"></i></button>';
-      acciones += '<button class="btn btn-outline-danger btn-sm ripple" data-action="cancelar" data-id="' + c.idCotizacion + '" title="Cancelar"><i class="fas fa-ban"></i></button>';
-    }
 
     return '<tr>' +
       '<td class="fw-bold">#' + c.idCotizacion + tipoBadge + '</td>' +
@@ -151,7 +160,7 @@ function renderTable() {
       '<td>' + estadoBadge + '</td>' +
       '<td>' + expiracion + '</td>' +
       '<td>' + creacion + '</td>' +
-      '<td><div class="d-flex gap-1">' + acciones + '</div></td>' +
+      '<td class="acciones-cell"><button type="button" class="btn-kebab-toggle kebab-trigger" data-id="' + c.idCotizacion + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>' +
     '</tr>';
   }).join('');
 }

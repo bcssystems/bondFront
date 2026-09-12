@@ -6,6 +6,7 @@ let state = {
   editingId: null,
   paises: [],
   preciosClienteId: null,
+  detalleClienteId: null,
 };
 
 const REGIMENES_FISCALES = [
@@ -37,6 +38,7 @@ function bindEvents() {
   document.getElementById('btnNuevoCliente')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCliente')?.addEventListener('click', guardarCliente);
   document.getElementById('tableClientesBody')?.addEventListener('click', handleTableClick);
+  document.getElementById('btnDetalleCreditoCliente')?.addEventListener('click', irACreditosDesdeDetalle);
   document.getElementById('searchCliente')?.addEventListener('input', Utils.debounce(() => cargarClientes(0), 400));
   document.getElementById('filtroListaNegra')?.addEventListener('change', () => cargarClientes(0));
   document.getElementById('clienteTieneCredito')?.addEventListener('change', function () {
@@ -110,42 +112,31 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="23"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.data.map(c => {
     const saldo = c.saldoActual;
     const saldoRojo = saldo != null && saldo > 0;
-    const pais = (state.paises || []).find(p => p.codigo === c.codigoPais);
-    const paisNombre = pais ? pais.nombre : (c.codigoPais || '-');
-    const direccionNum = [c.calle, c.numExt, c.numInt].filter(Boolean).join(' ') || '-';
+    const creditoHtml = c.tieneCredito
+      ? '<span class="badge bg-info"><i class="fas fa-check me-1"></i>S\u00ed</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>')
+      : '<span class="text-muted">-</span>';
+    const limiteHtml = c.tieneCredito
+      ? (c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : '<span class="badge bg-warning text-dark">Ilimitado</span>')
+      : '-';
     return `<tr${c.enListaNegra ? ' style="background:rgba(220,38,38,0.04)"' : ''}>
     <td>${Utils.esc(c.nombre)}</td>
     <td>${Utils.esc(c.apellidoPaterno || '')} ${Utils.esc(c.apellidoMaterno || '')}</td>
     <td>${Utils.esc(c.telefono) || '-'}</td>
-    <td>${Utils.esc(paisNombre)}</td>
-    <td>${Utils.esc(c.whatsapp) || '-'}</td>
-    <td>${Utils.esc(c.empresa) || '-'}</td>
-    <td>${Utils.esc(c.rfc) || '-'}</td>
-    <td>${Utils.esc(c.regimenFiscal) || '-'}</td>
-    <td>${Utils.esc(c.representanteLegal) || '-'}</td>
-    <td>${Utils.esc(c.direccionEntrega) || '-'}</td>
-    <td>${Utils.esc(c.cp) || '-'}</td>
-    <td>${Utils.esc(c.estado) || '-'}</td>
-    <td>${Utils.esc(c.municipio) || '-'}</td>
-    <td>${Utils.esc(c.colonia) || '-'}</td>
-    <td>${Utils.esc(direccionNum)}</td>
-    <td>${c.tieneCredito ? '<span class="badge bg-info"><i class="fas fa-check"></i>' +
-      (c.limiteCredito == null ? ' ilimitado' : '') + '</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>') : '<span class="text-muted">-</span>'}</td>
-    <td>${c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : (c.tieneCredito ? 'Ilimitado' : '-')}</td>
+    <td>${creditoHtml}</td>
+    <td>${limiteHtml}</td>
     <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? '$' + saldo.toFixed(2) : '-'}</td>
     <td class="text-center">
       <input type="checkbox" class="form-check-input" data-id="${c.idCliente}" data-ln="${c.enListaNegra ? 1 : 0}" data-nombre="${Utils.esc(c.nombre + ' ' + (c.apellidoPaterno||''))}" ${c.enListaNegra ? 'checked' : ''} title="Lista negra">
     </td>
     <td>${Utils.esc(c.motivoListaNegra) || '-'}</td>
     <td>${c.activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Inactivo</span>'}</td>
-    <td>${c.fechaRegistro ? Utils.formatDateTime(c.fechaRegistro) : '-'}</td>
     <td class="acciones-cell">
       <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCliente}" data-action="menu" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
     </td>
@@ -207,12 +198,78 @@ function handleTableClick(e) {
 function abrirAccionesCliente(anchor, id) {
   const c = (state.data || []).find(x => x.idCliente === id);
   const items = [
+    { icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetalleCliente(id) },
+    { icon: 'fa-file-invoice', text: 'Estado de cuenta', color: 'var(--primary)', onClick: () => irACreditos(id) },
+    { icon: 'fa-list', text: 'Cr\u00e9ditos pendientes', color: 'var(--primary)', onClick: () => irACreditosPendientes(id) },
+    { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
     ...(Utils.hasPermiso('PRECIOS_CLIENTE_VER') ? [{ icon: 'fa-dollar-sign', text: 'Precios especiales', color: 'var(--success)', onClick: () => abrirModalPrecios(id) }] : []),
     { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
     { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
   ];
   Utils.abrirMenuKebab(anchor, items);
+}
+
+function irACreditos(id) {
+  localStorage.setItem('creditosParaCliente', String(id));
+  document.querySelector('[data-view="pages/creditos.html"]')?.click();
+}
+
+function irACreditosPendientes(id) {
+  localStorage.setItem('creditosParaCliente', String(id));
+  document.querySelector('[data-view="pages/creditos.html"]')?.click();
+}
+
+function irACreditosDesdeDetalle() {
+  const id = state.detalleClienteId;
+  if (!id) return;
+  localStorage.setItem('creditosParaCliente', String(id));
+  document.querySelector('[data-view="pages/creditos.html"]')?.click();
+}
+
+function abonarEnPOS(id, c) {
+  localStorage.setItem('abonoParaPOS', JSON.stringify({
+    idCliente: id,
+    nombre: (c?.nombre || '') + ' ' + (c?.apellidoPaterno || ''),
+  }));
+  Utils.showToast('Abriendo POS para registrar el abono', 'info');
+  document.querySelector('[data-view="pages/ventas.html"]')?.click();
+}
+
+function abrirDetalleCliente(id) {
+  const c = (state.data || []).find(x => x.idCliente === id);
+  if (!c) { Utils.showToast('Cliente no encontrado', 'warning'); return; }
+  state.detalleClienteId = id;
+
+  const formatear = v => v ? Utils.esc(String(v)) : '-';
+  const gen = [];
+  gen.push('<div class="mb-1"><span class="text-muted">RFC:</span> <strong>' + formatear(c.rfc) + '</strong></div>');
+  gen.push('<div class="mb-1"><span class="text-muted">R\u00e9gimen fiscal:</span> ' + formatear(c.regimenFiscal) + '</div>');
+  gen.push('<div class="mb-1"><span class="text-muted">WhatsApp:</span> ' + formatear(c.whatsapp) + '</div>');
+  gen.push('<div class="mb-1"><span class="text-muted">Empresa:</span> ' + formatear(c.empresa) + '</div>');
+  gen.push('<div class="mb-1"><span class="text-muted">Contacto:</span> ' + formatear(c.representanteLegal) + '</div>');
+  gen.push('<div class="mb-1"><span class="text-muted">Credencial INE:</span> ' + (c.tieneIne ? '<span class="text-success">Registrada</span>' : '<span class="text-danger">No registrada</span>') + '</div>');
+  gen.push('<div class="mb-0"><span class="text-muted">Registro:</span> ' + (c.fechaRegistro ? Utils.formatDateTime(c.fechaRegistro) : '-') + '</div>');
+  document.getElementById('clienteDetalleGeneral').innerHTML = gen.join('');
+
+  const dir = [];
+  const direccionNum = [c.calle, c.numExt, c.numInt].filter(Boolean).join(' ') || '-';
+  dir.push('<div class="mb-1"><span class="text-muted">Direcci\u00f3n:</span> ' + formatear(direccionNum) + '</div>');
+  dir.push('<div class="mb-1"><span class="text-muted">Colonia:</span> ' + formatear(c.colonia) + '</div>');
+  dir.push('<div class="mb-1"><span class="text-muted">C.P.:</span> ' + formatear(c.cp) + '</div>');
+  dir.push('<div class="mb-1"><span class="text-muted">Municipio:</span> ' + formatear(c.municipio) + '</div>');
+  dir.push('<div class="mb-1"><span class="text-muted">Estado:</span> ' + formatear(c.estado) + '</div>');
+  dir.push('<div class="mb-0"><span class="text-muted">Entrega:</span> ' + formatear(c.direccionEntrega) + '</div>');
+  document.getElementById('clienteDetalleDireccion').innerHTML = dir.join('');
+
+  const cred = [];
+  cred.push('<div class="mb-1"><span class="text-muted">Cr\u00e9dito:</span> ' + (c.tieneCredito ? '<span class="text-success">Habilitado</span>' : '<span class="text-muted">No</span>') + '</div>');
+  cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : 'Ilimitado') : '-') + '</div>');
+  cred.push('<div class="mb-1"><span class="text-muted">Saldo:</span> <strong>' + (c.saldoActual != null ? '$' + c.saldoActual.toFixed(2) : '-') + '</strong></div>');
+  cred.push('<div class="mb-0"><span class="text-muted">Lista negra:</span> ' + (c.enListaNegra ? '<span class="text-danger">' + formatear(c.motivoListaNegra) + '</span>' : '<span class="text-success">No</span>') + '</div>');
+  document.getElementById('clienteDetalleCredito').innerHTML = cred.join('');
+
+  new bootstrap.Modal(document.getElementById('clienteDetalleModal')).show();
 }
 
 function abrirModal(id) {

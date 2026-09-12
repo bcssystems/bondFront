@@ -1,3 +1,5 @@
+import { printRemisionVenta } from './printing.js';
+
 let state = {
   caja: null,
   cajas: [],
@@ -8,6 +10,7 @@ let state = {
   editingVentaEspera: null,
   productSearchTimeout: null,
   reanudandoVentaId: null,
+  activeEsperaId: null,
   esperaVentas: [],
   activeEsperaTab: null,
   cancelarVentas: [],
@@ -18,6 +21,7 @@ let state = {
   idCotizacionActiva: null,
   preciosClienteMap: {},
   configs: {},
+  abonoPOSClienteId: null,
 };
 
 const REGIMENES_FISCALES = [
@@ -106,6 +110,7 @@ function bindEvents() {
     new bootstrap.Modal(document.getElementById('posIngresoModal')).show();
   });
   document.getElementById('btnGuardarIngreso')?.addEventListener('click', ingresarEfectivo);
+  document.getElementById('btnConfirmarAbonoPOS')?.addEventListener('click', confirmarAbonoPOS);
   document.getElementById('btnCortePOS')?.addEventListener('click', previewCorte);
   document.getElementById('btnRealizarCortePOS')?.addEventListener('click', realizarCorte);
   document.getElementById('btnGastoPOS')?.addEventListener('click', () => {
@@ -258,6 +263,7 @@ async function iniciarPOS() {
   cargarEsperas();
   iniciarPollingCaja();
   actualizarCajaInfo();
+  abrirAbonoPOSDesdeLocalStorage();
 }
 
 function actualizarCajaInfo() {
@@ -830,6 +836,8 @@ async function limpiarCart() {
     } catch (_) {}
   }
   state.cart = [];
+  state.activeEsperaId = null;
+  state.reanudandoVentaId = null;
   renderCart();
 }
 
@@ -1029,10 +1037,7 @@ async function confirmarCobro() {
   };
 
   try {
-    if (state.reanudandoVentaId) {
-      await API.post('/ventas/' + state.reanudandoVentaId + '/cancelar', {});
-      state.reanudandoVentaId = null;
-    }
+    await finalizarEsperaActiva();
     const ventaCreada = await API.post('/ventas', request);
     Utils.showToast('Venta registrada exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
@@ -1090,10 +1095,7 @@ async function confirmarCreditoPOS() {
     pagos: [],
   };
   try {
-    if (state.reanudandoVentaId) {
-      await API.post('/ventas/' + state.reanudandoVentaId + '/cancelar', {});
-      state.reanudandoVentaId = null;
-    }
+    await finalizarEsperaActiva();
     const ventaCreada = await API.post('/ventas', request);
     Utils.showToast('Venta a cr\u00e9dito registrada', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCreditoModal'))?.hide();
@@ -1112,428 +1114,14 @@ async function confirmarCreditoPOS() {
 }
 
 function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInteres, clienteInfo) {
-  const now = new Date();
-  const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-  const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  const numCopies = copies || 1;
-  const isCredit = esCredito || venta.tipoVenta === 'CREDITO';
-
-  const totalConInteres = isCredit ? (venta.total || 0) + ((venta.total || 0) * (porcentajeInteres || 0) / 100) : (venta.total || 0);
-
-  const detalleRows = (venta.detalles || []).map(d => {
-    const dSubtotal = d.subtotal || (d.cantidad * d.precioUnitario) || 0;
-    const nombre = Utils.esc(d.productoNombre || d.descripcion || 'Producto');
-    const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
-    const attrs = d.atributosText ? '<br><span class="detalle-attrs">' + Utils.esc(d.atributosText) + '</span>' : '';
-    return `
-    <tr class="detalle-row">
-      <td>${nombre}${attrs}</td>
-      <td class="center">${d.cantidad}</td>
-      <td class="center small">${Utils.esc(unidad)}</td>
-      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-      <td class="right">$${dSubtotal.toFixed(2)}</td>
-    </tr>`;
-  }).join('');
-
-  const pagoRows = isCredit
-    ? '<tr><td>Cr\u00e9dito</td><td class="right">$' + totalConInteres.toFixed(2) + '</td></tr>'
-    : (venta.pagos || []).map(p => `
-    <tr>
-      <td>${Utils.esc((p.tipoPagoNombre || '').split(' ')[0])}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
-      <td class="right">$${(p.monto || 0).toFixed(2)}</td>
-    </tr>`).join('');
-
-  const titularPagare = state.configs['titularPagare'] || state.configs['descripcionEmpresa'] || '';
-  const lugarPagare = state.configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
-  const tasaMora = state.configs['tasaInteresMoraPagare'] || 0;
-  const montoLetras = Utils.numeroALetras(totalConInteres);
-
-  const cliPagare = (clienteInfo && clienteInfo.idCliente) ? clienteInfo : null;
-  const deudorNombre = cliPagare
-    ? [cliPagare.nombre || '', cliPagare.apellidoPaterno || '', cliPagare.apellidoMaterno || ''].filter(Boolean).join(' ')
-    : (venta.clienteNombre || '');
-  const deudorDireccionCompuesta = cliPagare
-    ? [cliPagare.calle || '', cliPagare.numExt ? '#' + cliPagare.numExt : '', cliPagare.numInt ? 'Int ' + cliPagare.numInt : '', cliPagare.colonia ? 'Col. ' + cliPagare.colonia : ''].filter(Boolean).join(', ')
-    : '';
-  const deudorDireccion = cliPagare ? (cliPagare.direccion || deudorDireccionCompuesta || '') : '';
-  const deudorRfc = cliPagare ? (cliPagare.rfc || '') : '';
-  const deudorPoblacion = cliPagare
-    ? [cliPagare.municipio || '', cliPagare.estado || ''].filter(Boolean).join(', ') || (cliPagare.cp || '')
-    : '';
-  const deudorTel = cliPagare ? (cliPagare.telefono || '') : '';
-
-  const diaExpedicion = now.getDate();
-  const mesExpedicion = now.toLocaleDateString('es-MX', { month: 'long' });
-  const anioExpedicion = now.getFullYear();
-
-  const pagareHtml = isCredit ? `
-  <div class="pagare">
-    <h2 class="pagare-h2">PAGAR\u00c9</h2>
-    <div class="pagare-doc-no">FOLIO DE PAGAR\u00c9: ${Utils.esc(venta.folioPagare || '—')}</div>
-    <div class="pagare-lugar-fecha">
-      <span>LUGAR DE EXPEDICI\u00d3N: ${Utils.esc(lugarPagare)}</span>
-      <span>D\u00cdA: ${diaExpedicion}&nbsp;&nbsp; MES: ${Utils.esc(mesExpedicion)}&nbsp;&nbsp; A\u00d1O: ${anioExpedicion}</span>
-    </div>
-    <div class="pagare-bueno-por">
-      <span class="pagare-bueno-por-label">BUENO POR</span>
-      <span class="pagare-bueno-por-monto">$${totalConInteres.toFixed(2)}</span>
-    </div>
-    <p class="pagare-leyenda">
-      Debemos y pagar\u00e9(mos) incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este Pagar\u00e9 a la orden de:
-      <strong>${Utils.esc(titularPagare)}</strong>, el d\u00eda ${diaExpedicion} de ${Utils.esc(mesExpedicion)} de ${anioExpedicion}.
-      La cantidad de: <strong>$${totalConInteres.toFixed(2)} (${Utils.esc(montoLetras)})</strong>.
-    </p>
-    <p class="pagare-leyenda">
-      CANTIDAD QUE CORRESPONDE AL IMPORTE DE LAS MERCANCIAS QUE SE DETALLAN EN EL PEDIDO CUYO N\u00daMERO COINCIDE CON EL DE ESTE DOCUMENTO QUE HE RECIBIDO DE CONFORMIDAD,
-      SIENDO ESTE PAGAR\u00c9 MERCANTIL EN LOS T\u00c9RMINOS DE LOS ART\u00cdCULOS 170 Y 171 DE LA LEY GENERAL DE T\u00cdTULOS Y OPERACIONES DE CR\u00c9DITO; AS\u00cd MISMO,
-      DE CONFORMIDAD CON EL ART\u00cdCULO 11 Y DEM\u00c1S RELATIVOS DE LA LEY CITADA, ME OBLIGO INCONDICIONALMENTE A PAGAR EL IMPORTE DE ESTE PAGAR\u00c9 CUANDO
-      SEA ACEPTADO EN MI NOMBRE Y REPRESENTACI\u00d3N POR EMPLEADO O DEPENDIENTE DE MI NEGOCIO. EL PRESENTE PAGAR\u00c9 ES SIN PROTESTO; EN CASO DE MORA
-      AL PLAZO SE CUBRIR\u00c1N INTERESES A LA TASA DEL <strong>${tasaMora}%</strong> MENSUAL.
-    </p>
-    <div class="pagare-pie">
-      <div class="pagare-caja">
-        <div class="pagare-caja-titulo">DATOS DEL(LOS) DEUDOR(ES) / AVAL</div>
-        <table class="pagare-caja-tabla">
-          <tr><td class="pagare-caja-campo">Nombre:</td><td>${Utils.esc(deudorNombre) || '______________'}</td></tr>
-          <tr><td class="pagare-caja-campo">Direcci\u00f3n:</td><td>${Utils.esc(deudorDireccion) || '______________'}</td></tr>
-          <tr><td class="pagare-caja-campo">RFC:</td><td>${Utils.esc(deudorRfc) || '______________'}</td></tr>
-          <tr><td class="pagare-caja-campo">Poblaci\u00f3n:</td><td>${Utils.esc(deudorPoblacion) || '______________'}</td></tr>
-          <tr><td class="pagare-caja-campo">Tel.:</td><td>${Utils.esc(deudorTel) || '______________'}</td></tr>
-        </table>
-      </div>
-      <div class="pagare-firma-area">
-        <div class="pagare-linea-firma"></div>
-        <div class="pagare-firma-rol">FIRMA(S) DEL(LOS) DEUDOR(ES) / AVAL</div>
-        <div class="pagare-firma-nombre">${Utils.esc(deudorNombre)}</div>
-      </div>
-    </div>
-  </div>` : '';
-
-  const ticketStyle = `
-    @page {
-      size: letter;
-      margin: 0;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-      font-size: 10pt;
-      color: #222;
-      line-height: 1.35;
-    }
-    .print-copy {
-      page-break-after: always;
-      min-height: 100vh;
-      position: relative;
-      box-sizing: border-box;
-      padding: 0.25in;
-    }
-    .print-copy:last-child { page-break-after: avoid; }
-    .copy-label {
-      text-align: center;
-      font-size: 7.5pt;
-      color: #999;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .header {
-      text-align: center;
-      padding-bottom: 8px;
-      border-bottom: 3px solid #2563EB;
-      margin-bottom: 10px;
-    }
-    .header h1 {
-      font-size: 22pt;
-      font-weight: 800;
-      letter-spacing: 4px;
-      color: #2563EB;
-      text-transform: uppercase;
-    }
-    .header .sub {
-      font-size: 8pt;
-      color: #888;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-    .header .folio {
-      font-size: 13pt;
-      color: #2563EB;
-      font-weight: 700;
-      margin-top: 4px;
-      letter-spacing: 1px;
-    }
-    .info-grid {
-      width: 100%;
-      margin-bottom: 8px;
-      border-collapse: collapse;
-    }
-    .info-grid td {
-      padding: 2px 6px;
-      font-size: 9pt;
-      vertical-align: top;
-    }
-    .info-grid .label {
-      font-weight: 600;
-      color: #555;
-      width: 90px;
-      text-transform: uppercase;
-      font-size: 7.5pt;
-      letter-spacing: 0.5px;
-    }
-    .info-grid td:last-child { text-align: left; }
-    .divider { border-top: 1px solid #ccc; margin: 6px 0; }
-    table.detalles {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    table.detalles thead { background: #2563EB; color: #fff; }
-    table.detalles th {
-      font-size: 7.5pt;
-      text-align: left;
-      padding: 5px 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    table.detalles th.right { text-align: right; }
-    table.detalles th.center { text-align: center; }
-    table.detalles td {
-      padding: 4px 6px;
-      border-bottom: 1px solid #e0e0e0;
-      font-size: 9pt;
-      vertical-align: top;
-    }
-    table.detalles td.right { text-align: right; }
-    table.detalles td.center { text-align: center; }
-    table.detalles .detalle-attrs {
-      font-size: 7.5pt;
-      color: #666;
-      font-style: italic;
-    }
-    .totals {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    .totals td {
-      padding: 2px 6px;
-      font-size: 9.5pt;
-    }
-    .totals td.right { text-align: right; }
-    .totals .total-row td {
-      font-size: 13pt;
-      font-weight: 700;
-      border-top: 2px solid #222;
-      padding-top: 6px;
-      color: #2563EB;
-    }
-    .section { margin-top: 8px; }
-    .section-title {
-      font-weight: 600;
-      font-size: 8pt;
-      color: #555;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .nota {
-      margin-top: 6px;
-      padding: 6px 8px;
-      background: #f0f4f8;
-      font-size: 8.5pt;
-      border-left: 3px solid #2563EB;
-    }
-    .footer {
-      text-align: center;
-      padding-top: 10px;
-      border-top: 1px solid #ccc;
-      font-size: 7.5pt;
-      color: #999;
-      line-height: 1.5;
-    }
-    .footer strong { color: #666; }
-    .bottom-section {
-      position: absolute;
-      bottom: 0.25in;
-      left: 0.25in;
-      right: 0.25in;
-    }
-    .pagare { margin-top: 8px; }
-    .pagare-h2 {
-      text-align: center;
-      font-size: 15pt;
-      font-weight: 800;
-      letter-spacing: 8px;
-      color: #1e3a5f;
-      text-transform: uppercase;
-      margin: 16px 0 2px;
-    }
-    .pagare-doc-no {
-      text-align: center;
-      font-size: 8pt;
-      color: #2563EB;
-      font-weight: 600;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #2563EB;
-      margin-bottom: 8px;
-    }
-    .pagare-lugar-fecha {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 6px;
-      font-size: 7pt;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-    .pagare-bueno-por {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      border: 1px solid #334155;
-      border-radius: 4px;
-      padding: 6px 10px;
-      margin: 10px 0;
-      font-size: 8.5pt;
-    }
-    .pagare-bueno-por-label { font-weight: 700; letter-spacing: 1px; }
-    .pagare-bueno-por-monto {
-      font-size: 10pt;
-      font-weight: 800;
-      color: #1e3a5f;
-      border-bottom: 2px solid #334155;
-      min-width: 40%;
-      text-align: right;
-    }
-    .pagare-leyenda {
-      font-size: 8pt;
-      text-align: justify;
-      line-height: 1.45;
-      margin-bottom: 7px;
-    }
-    .pagare-pie {
-      display: flex;
-      align-items: stretch;
-      gap: 16px;
-      margin-top: 20px;
-    }
-    .pagare-caja {
-      width: 62%;
-      border: 1.5px solid #334155;
-      border-radius: 4px;
-      padding: 6px 8px;
-    }
-    .pagare-caja-titulo {
-      text-align: center;
-      font-weight: 700;
-      font-size: 6.5pt;
-      letter-spacing: 1px;
-      border-bottom: 1px solid #334155;
-      padding-bottom: 3px;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-    .pagare-caja-tabla { width: 100%; border-collapse: collapse; }
-    .pagare-caja-tabla td {
-      font-size: 7pt;
-      padding: 2px 3px;
-      vertical-align: top;
-    }
-    .pagare-caja-campo {
-      width: 34%;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .pagare-firma-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      text-align: center;
-    }
-    .pagare-linea-firma { border-bottom: 1px solid #222; height: 24px; }
-    .pagare-firma-rol {
-      margin-top: 4px;
-      font-size: 6.5pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .pagare-firma-nombre {
-      margin-top: 2px;
-      font-size: 7pt;
-      font-weight: 600;
-    }
-  `;
-
-  function buildBodyHtml(copyIndex) {
-    const totalesHtml = `
-  <div class="divider"></div>
-  <table class="totals">
-    <tr><td>Subtotal</td><td class="right">$${(venta.subtotal || 0).toFixed(2)}</td></tr>
-    <tr><td>Descuento</td><td class="right">-$${(venta.descuento || 0).toFixed(2)}</td></tr>
-    <tr class="total-row"><td>TOTAL</td><td class="right">$${(isCredit ? totalConInteres : venta.total || 0).toFixed(2)}</td></tr>
-  </table>
-  <div class="divider"></div>
-  <div class="section">
-    <div class="section-title">Desglose de Pagos</div>
-    <table class="totals">
-      ${pagoRows}
-    </table>
-  </div>
-  ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}`;
-
-    const pieHtml = isCredit
-      ? `<div class="bottom-section pagare-footer">${pagareHtml}</div>`
-      : `<div class="bottom-section"><div class="footer">
-      <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
-      Este documento es un comprobante interno de venta<br>
-      ${fechaStr} ${horaStr}
-    </div></div>`;
-
-    return `
-  ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
-  <div class="header">
-    <h1>BONDS</h1>
-    <div class="sub">Sistema de Administraci\u00f3n</div>
-    <div class="folio">REMISI\u00d3N #${venta.idVenta}</div>
-  </div>
-  <table class="info-grid">
-    <tr><td class="label">Fecha</td><td class="value">${fechaStr}</td><td class="label">Caja</td><td class="value">${Utils.esc(venta.cajaNombre || state.caja?.nombre || '')}</td></tr>
-    <tr><td class="label">Hora</td><td class="value">${horaStr}</td><td class="label">Sucursal</td><td class="value">${Utils.esc(venta.sucursalNombre || state.caja?.sucursalNombre || '')}</td></tr>
-    <tr><td class="label">Cliente</td><td class="value">${Utils.esc(venta.clienteNombre || 'Mostrador')}</td><td class="label">Atendi\u00f3</td><td class="value">${Utils.esc(venta.usuario || '')}</td></tr>
-    <tr><td class="label">Tipo</td><td class="value">${venta.tipoVenta || 'CONTADO'}</td><td class="label">Folio</td><td class="value">#${venta.idVenta}</td></tr>
-  </table>
-  <div class="divider"></div>
-  <table class="detalles">
-    <thead>
-      <tr>
-        <th style="width:38%">Descripci\u00f3n</th>
-        <th class="center" style="width:9%">Cant</th>
-        <th class="center" style="width:12%">Unidad</th>
-        <th class="right" style="width:18%">Precio</th>
-        <th class="right" style="width:23%">Importe</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${detalleRows}
-    </tbody>
-  </table>
-  ${totalesHtml}
-  ${pieHtml}`;
-  }
-
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
-  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + ticketStyle + '</style>\n</head>\n<body>';
-  for (let i = 0; i < numCopies; i++) {
-    fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
-  }
-  fullHtml += '\n</body>\n</html>';
-  printWindow.document.write(fullHtml);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => { printWindow.print(); }, 300);
+  printRemisionVenta(venta, {
+    esCredito,
+    plazoMeses,
+    porcentajeInteres,
+    clienteInfo,
+    copies,
+    configs: state.configs,
+  });
 }
 
 function imprimirTicketCorte(corte) {
@@ -1637,8 +1225,53 @@ function imprimirTicketCorte(corte) {
   setTimeout(() => { printWindow.print(); }, 300);
 }
 
+function construirDetallesEspera() {
+  return state.cart.map(d => ({
+    idProducto: d.idProducto,
+    descripcion: null,
+    cantidad: d.cantidad,
+    precioUnitario: d.precioUnitario,
+    subtotal: d.cantidad * d.precioUnitario,
+  }));
+}
+
+async function guardarEsperaActiva() {
+  if (!state.activeEsperaId) return;
+  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
+  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const clienteId = parseInt(document.getElementById('posCliente').value) || null;
+  const request = {
+    idCliente: clienteId || null,
+    subtotal: subtotal,
+    descuento: subtotal - total,
+    total: total,
+    nota: null,
+    detalles: construirDetallesEspera(),
+  };
+  await API.put('/ventas/' + state.activeEsperaId + '/espera', request);
+}
+
+async function finalizarEsperaActiva() {
+  if (!state.activeEsperaId) return;
+  await guardarEsperaActiva();
+  await API.post('/ventas/' + state.activeEsperaId + '/cancelar-espera', {});
+  state.activeEsperaId = null;
+}
+
 async function ponerEnEspera() {
   if (state.cart.length === 0 || !state.caja) return;
+
+  if (state.activeEsperaId) {
+    try {
+      await guardarEsperaActiva();
+      state.activeEsperaId = null;
+      Utils.showToast('Venta en espera guardada', 'success');
+      await limpiarCart();
+      await cargarEsperas();
+    } catch (err) { Utils.showToast(err.message, 'error'); }
+    return;
+  }
+
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
@@ -1652,13 +1285,7 @@ async function ponerEnEspera() {
     descuento: subtotal - total,
     total: total,
     nota: null,
-    detalles: state.cart.map(d => ({
-      idProducto: d.idProducto,
-      descripcion: null,
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario,
-      subtotal: d.cantidad * d.precioUnitario,
-    })),
+    detalles: construirDetallesEspera(),
     pagos: null,
   };
 
@@ -1684,6 +1311,76 @@ async function ingresarEfectivo() {
     document.getElementById('posIngresoMonto').value = '';
     document.getElementById('posIngresoMotivo').value = '';
     await refreshCaja();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function abrirAbonoPOSDesdeLocalStorage() {
+  if (!state.caja?.idCaja) return;
+  const raw = localStorage.getItem('abonoParaPOS');
+  if (!raw) return;
+  localStorage.removeItem('abonoParaPOS');
+  try {
+    const data = JSON.parse(raw);
+    abrirAbonoPOS(data);
+  } catch (_) {}
+}
+
+async function abrirAbonoPOS(data) {
+  state.abonoPOSClienteId = data?.idCliente || null;
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('abonoPOSModal'));
+  document.getElementById('abonoPOSClienteName').textContent = (data?.nombre || 'Cliente') + (data?.idCliente ? '' : '');
+  document.getElementById('abonoPOSMonto').value = '';
+  document.getElementById('abonoPOSCajaInfo').textContent = (state.caja?.nombre || '—') + ' | Sucursal: ' + (state.caja?.sucursalNombre || '—');
+
+  try {
+    const tipos = await API.get('/tipos-pago');
+    document.getElementById('abonoPOSTipoPago').innerHTML = tipos.map(t =>
+      `<option value="${t.idTipoPago}">${Utils.esc(t.nombre)}</option>`).join('');
+  } catch (_) {
+    document.getElementById('abonoPOSTipoPago').innerHTML = '<option value="">Sin formas de pago</option>';
+  }
+
+  const selCredito = document.getElementById('abonoPOSCredito');
+  selCredito.innerHTML = '<option value="">Cargando cr\u00e9ditos...</option>';
+  if (data?.idCliente) {
+    try {
+      const creditos = await API.get('/creditos/clientes/' + data.idCliente + '/creditos');
+      const activos = (creditos || []).filter(c => c.estado === 'ACTIVO' && (c.saldoPendiente || 0) > 0);
+      selCredito.innerHTML = '<option value="-1">Abono general (repartir entre todos)</option>' +
+        activos.map(c =>
+          `<option value="${c.idCredito}">Cr\u00e9dito #${c.idCredito} \u2014 saldo $${(c.saldoPendiente || 0).toFixed(2)}</option>`).join('');
+    } catch (_) {
+      selCredito.innerHTML = '<option value="-1">Abono general (repartir entre todos)</option>';
+    }
+  } else {
+    selCredito.innerHTML = '<option value="-1">Abono general</option>';
+  }
+
+  modal.show();
+}
+
+async function confirmarAbonoPOS() {
+  if (!state.caja?.idCaja) { Utils.showToast('No hay caja activa', 'error'); return; }
+  const idCliente = state.abonoPOSClienteId;
+  const idCredito = parseInt(document.getElementById('abonoPOSCredito').value) || 0;
+  const monto = parseFloat(document.getElementById('abonoPOSMonto').value);
+  const idTipoPago = parseInt(document.getElementById('abonoPOSTipoPago').value);
+
+  if (!idCliente) { Utils.showToast('Cliente no disponible', 'warning'); return; }
+  if (!monto || monto <= 0) { Utils.showToast('Ingresa un monto v\u00e1lido', 'warning'); return; }
+  if (!idTipoPago) { Utils.showToast('Selecciona una forma de pago', 'warning'); return; }
+
+  try {
+    if (idCredito === -1 || idCredito === 0) {
+      await API.post('/creditos/abonos/general', { idCliente: idCliente, monto: monto, idTipoPago: idTipoPago, idCaja: state.caja.idCaja });
+    } else {
+      await API.post('/creditos/abonos', { idCredito: idCredito, monto: monto, tipo: 'PARCIAL', idTipoPago: idTipoPago, idCaja: state.caja.idCaja });
+    }
+    Utils.showToast('Abono registrado e ingreso a caja', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('abonoPOSModal'))?.hide();
+    document.getElementById('abonoPOSMonto').value = '';
+    await refreshCaja();
+    await cargarClientesSelect('posCliente');
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -1877,17 +1574,25 @@ function renderEsperas() {
   }).join('');
 
   tabsContainer.querySelectorAll('[data-espera-id]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.preventDefault();
-      state.activeEsperaTab = parseInt(btn.dataset.esperaId);
-      reanudarEspera(parseInt(btn.dataset.esperaId));
+      const id = parseInt(btn.dataset.esperaId);
+      state.activeEsperaTab = id;
+      await reanudarEspera(id);
     });
   });
 }
 
 async function reanudarEspera(idVenta) {
+  if (state.activeEsperaId === idVenta) {
+    document.getElementById('posProductSearch')?.focus();
+    return;
+  }
   try {
-    await API.post('/ventas/' + idVenta + '/cancelar-espera', {});
+    if (state.activeEsperaId) {
+      await guardarEsperaActiva();
+      state.activeEsperaId = null;
+    }
 
     const venta = await API.get('/ventas/' + idVenta);
     if (!venta.detalles || venta.detalles.length === 0) {
@@ -1910,7 +1615,7 @@ async function reanudarEspera(idVenta) {
       }
     }
 
-    state.reanudandoVentaId = null;
+    state.activeEsperaId = idVenta;
     state.cart = venta.detalles.map(d => ({
       idProducto: d.idProducto,
       nombre: d.productoNombre || d.descripcion || 'Producto',
