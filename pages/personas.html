@@ -11,10 +11,9 @@
 
   <div class="filter-bar">
     <div style="width:100%"></div>
-    <div class="form-check ms-2 mt-2">
-      <input type="checkbox" class="form-check-input" id="verPersonasInactivas">
-      <label class="form-check-label small" for="verPersonasInactivas">Ver inactivos</label>
-    </div>
+    <button class="btn btn-outline-secondary btn-sm text-nowrap ms-2" id="btnTogglePersonasInactivas">
+      <i class="fas fa-eye me-1"></i> Mostrar inactivos
+    </button>
   </div>
 
   <div class="panel-card overflow-hidden">
@@ -106,12 +105,13 @@
       </div>
       <div class="modal-body pt-2">
         <div class="row g-3">
-          <div class="col-12">
+          <div class="col-md-6">
             <div class="panel-card mb-0">
+              <h6 class="fw-semibold mb-2"><i class="fas fa-id-card me-1"></i> Datos del usuario</h6>
               <div id="personaDetalleInfo" class="small"></div>
             </div>
           </div>
-          <div class="col-12">
+          <div class="col-md-6">
             <div class="panel-card mb-0">
               <h6 class="fw-semibold mb-2"><i class="fas fa-key me-1"></i> Permisos del rol</h6>
               <div id="personaDetallePermisos" class="small" style="max-height:220px;overflow-y:auto"></div>

@@ -15,8 +15,10 @@ function bindEvents() {
   document.getElementById('personaPermisosAdicionales')?.addEventListener('change', e => {
     if (e.target.classList.contains('permiso-modulo-check')) seleccionarModuloPermiso(e.target);
   });
-  document.getElementById('verPersonasInactivas')?.addEventListener('change', e => {
-    state.verInactivas = e.target.checked;
+  document.getElementById('btnTogglePersonasInactivas')?.addEventListener('click', () => {
+    state.verInactivas = !state.verInactivas;
+    const btn = document.getElementById('btnTogglePersonasInactivas');
+    if (btn) btn.innerHTML = state.verInactivas ? '<i class="fas fa-eye-slash me-1"></i> Mostrar activos' : '<i class="fas fa-eye me-1"></i> Mostrar inactivos';
     cargarPersonas(0);
   });
   document.getElementById('btnDetalleEditarPersona')?.addEventListener('click', () => {

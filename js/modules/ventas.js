@@ -182,6 +182,16 @@ async function cargarCotizacionDesdeLocalStorage() {
     localStorage.removeItem('cotizacionParaVenta');
     state.idCotizacionActiva = quote.idCotizacion || null;
 
+    if (state.cart.length > 0) {
+      await ponerEnEspera();
+      if (state.cart.length > 0) {
+        Utils.showToast('No se pudo cargar la cotizaci\u00f3n: guarda la venta actual en espera para continuar.', 'error');
+        return;
+      }
+    }
+
+    await limpiarCart();
+
     if (quote.idCliente) {
       const sel = document.getElementById('posCliente');
       if (sel) sel.value = quote.idCliente;
@@ -189,52 +199,42 @@ async function cargarCotizacionDesdeLocalStorage() {
 
     if (quote.detalles && quote.detalles.length > 0) {
       for (const d of quote.detalles) {
-        const existente = state.cart.find(x => x.idProducto === d.idProducto);
-        if (existente) {
-          try {
+        try {
+          await API.post('/carrito/agregar', {
+            idCaja: state.caja.idCaja,
+            idProducto: d.idProducto,
+            cantidad: 1,
+          });
+          if (d.cantidad > 1) {
             await API.put('/carrito/actualizar', {
-              idCaja: state.caja.idCaja,
-              idProducto: d.idProducto,
-              cantidad: existente.cantidad + d.cantidad,
-            });
-            existente.cantidad += d.cantidad;
-          } catch (_) {}
-        } else {
-          try {
-            await API.post('/carrito/agregar', {
               idCaja: state.caja.idCaja,
               idProducto: d.idProducto,
               cantidad: d.cantidad,
             });
-          } catch (_) {}
-          const producto = state.productos.find(p => p.idProducto === d.idProducto);
-          state.cart.push({
-            idProducto: d.idProducto,
-            nombre: producto ? producto.nombre : d.productoNombre || 'Producto',
-            sku: producto ? producto.sku : d.productoSku || '',
-            cantidad: d.cantidad,
-            precioUnitario: d.precioUnitario,
-            stockActual: producto ? getStockSucursal(producto) : 0,
-          });
-        }
+          }
+        } catch (_) {}
+        const producto = state.productos.find(p => p.idProducto === d.idProducto);
+        state.cart.push({
+          idProducto: d.idProducto,
+          nombre: producto ? producto.nombre : d.productoNombre || 'Producto',
+          sku: producto ? producto.sku : d.productoSku || '',
+          cantidad: d.cantidad,
+          precioUnitario: d.precioUnitario,
+          stockActual: producto ? getStockSucursal(producto) : 0,
+        });
       }
     }
 
     if (quote.cobraEnvio && quote.montoEnvio > 0) {
-      const envioExistente = state.cart.find(x => x.sku === 'ENVIO');
-      if (envioExistente) {
-        envioExistente.precioUnitario = quote.montoEnvio;
-      } else {
-        state.cart.push({
-          idProducto: null,
-          nombre: 'Env\u00edo' + (quote.paqueteria ? ' - ' + quote.paqueteria : ''),
-          sku: 'ENVIO',
-          cantidad: 1,
-          precioUnitario: quote.montoEnvio,
-          stockActual: 0,
-          descripcion: 'Env\u00edo' + (quote.paqueteria ? ' - ' + quote.paqueteria : ''),
-        });
-      }
+      state.cart.push({
+        idProducto: null,
+        nombre: 'Env\u00edo' + (quote.paqueteria ? ' - ' + quote.paqueteria : ''),
+        sku: 'ENVIO',
+        cantidad: 1,
+        precioUnitario: quote.montoEnvio,
+        stockActual: 0,
+        descripcion: 'Env\u00edo' + (quote.paqueteria ? ' - ' + quote.paqueteria : ''),
+      });
     }
 
     renderCart();
@@ -310,6 +310,16 @@ function getStockSucursal(producto) {
   if (!state.caja?.idSucursal || !producto?.inventarioSucursales) return producto?.stockActual || 0;
   const inv = producto.inventarioSucursales.find(i => i.idSucursal === state.caja.idSucursal);
   return inv != null ? inv.stock : 0;
+}
+
+function cantidadEnEsperaSucursal(idProducto) {
+  let total = 0;
+  (state.esperaVentas || []).forEach(v => {
+    (v.detalles || []).forEach(d => {
+      if (d.idProducto === idProducto) total += (d.cantidad || 0);
+    });
+  });
+  return total;
 }
 
 function isReservadoPorOtraCaja(productoId) {
@@ -848,7 +858,7 @@ async function cobrarVenta() {
   for (const d of state.cart) {
     if (d.sku === 'ENVIO' || d.sku === 'VR') continue;
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p && getStockSucursal(p) < d.cantidad) {
+    if (p && getStockSucursal(p) + cantidadEnEsperaSucursal(d.idProducto) < d.cantidad) {
       Utils.showToast('Stock insuficiente en esta sucursal: ' + d.nombre, 'error');
       return;
     }
@@ -1179,6 +1189,7 @@ function imprimirTicketCorte(corte) {
     <tr><td style="padding-left:20px">Ventas Cr\u00e9dito</td><td>$${(corte.totalVentasCredito || 0).toFixed(2)}</td></tr>
     <tr><td>Total Ingresos</td><td style="color:#059669">+$${(corte.totalIngresos || 0).toFixed(2)}</td></tr>
     <tr><td>Total Egresos</td><td style="color:#dc2626">-$${(corte.totalEgresos || 0).toFixed(2)}</td></tr>
+    <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+$${(corte.totalAbonos || 0).toFixed(2)}</td></tr>
     <tr class="total-row"><td>Saldo Final</td><td>$${(corte.saldoFinalContado || 0).toFixed(2)}</td></tr>
   </table>
   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
@@ -1237,6 +1248,16 @@ function construirDetallesEspera() {
 
 async function guardarEsperaActiva() {
   if (!state.activeEsperaId) return;
+
+  if (state.cart.length === 0) {
+    try {
+      await API.post('/ventas/' + state.activeEsperaId + '/cancelar-espera', {});
+    } catch (_) {}
+    state.activeEsperaId = null;
+    await cargarEsperas();
+    return;
+  }
+
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
@@ -1349,6 +1370,9 @@ async function abrirAbonoPOS(data) {
       selCredito.innerHTML = '<option value="-1">Abono general (repartir entre todos)</option>' +
         activos.map(c =>
           `<option value="${c.idCredito}">Cr\u00e9dito #${c.idCredito} \u2014 saldo $${(c.saldoPendiente || 0).toFixed(2)}</option>`).join('');
+      if (data?.idCredito && activos.some(c => c.idCredito === data.idCredito)) {
+        selCredito.value = String(data.idCredito);
+      }
     } catch (_) {
       selCredito.innerHTML = '<option value="-1">Abono general (repartir entre todos)</option>';
     }
@@ -1448,7 +1472,11 @@ async function previewCorte() {
           <small class="text-muted">Egresos</small>
           <div class="text-danger fw-semibold">-$${corte.totalEgresos.toFixed(2)}</div>
         </div></div>
-        <div class="col-12"><div class="panel-card p-3 text-center">
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
+          <div class="fw-semibold" style="color:var(--info)">+$${(corte.totalAbonos || 0).toFixed(2)}</div>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Total Gastos</small>
           <div class="text-danger fw-semibold">-$${corte.totalGastos.toFixed(2)}</div>
         </div></div>
@@ -1563,13 +1591,15 @@ function renderEsperas() {
   tabsContainer.innerHTML = state.esperaVentas.map(v => {
     const isActive = v.idVenta === state.activeEsperaTab;
     const cliente = v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador';
-    return `<li class="nav-item" role="presentation">
+    return `<li class="nav-item pos-espera-item" role="presentation">
       <button class="nav-link ${isActive ? 'active' : ''}" id="espera-tab-${v.idVenta}" data-espera-id="${v.idVenta}"
         type="button" role="tab" aria-selected="${isActive}"
         style="font-size:0.72rem;padding:4px 8px;white-space:nowrap;cursor:pointer"
         title="Recuperar la cuenta de ${cliente}">
         ${cliente} <small class="text-muted" style="font-weight:600">$${v.total.toFixed(2)}</small>
       </button>
+      <button type="button" class="pos-espera-close" data-espera-del="${v.idVenta}"
+        title="Eliminar venta en espera" aria-label="Eliminar venta en espera">&#10005;</button>
     </li>`;
   }).join('');
 
@@ -1581,6 +1611,33 @@ function renderEsperas() {
       await reanudarEspera(id);
     });
   });
+
+  tabsContainer.querySelectorAll('.pos-espera-close').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      eliminarEspera(parseInt(btn.dataset.esperaDel));
+    });
+  });
+}
+
+async function eliminarEspera(idVenta) {
+  const venta = state.esperaVentas.find(v => v.idVenta === idVenta);
+  const ventaId = parseInt(idVenta);
+  const ok = await Utils.confirm('Eliminar venta en espera',
+    'Se eliminar\u00e1 la cuenta de ' + (venta?.clienteNombre || 'Mostrador')
+    + ' por $' + (venta?.total != null ? venta.total.toFixed(2) : '0.00') + '. \u00bfContinuar?');
+  if (!ok) return;
+  try {
+    await API.post('/ventas/' + ventaId + '/cancelar-espera', {});
+    if (state.activeEsperaTab === ventaId) state.activeEsperaTab = null;
+    if (state.activeEsperaId === ventaId) {
+      state.activeEsperaId = null;
+      await limpiarCart();
+    }
+    Utils.showToast('Venta en espera eliminada', 'success');
+    await cargarEsperas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 async function reanudarEspera(idVenta) {
@@ -1593,6 +1650,8 @@ async function reanudarEspera(idVenta) {
       await guardarEsperaActiva();
       state.activeEsperaId = null;
     }
+
+    await limpiarCart();
 
     const venta = await API.get('/ventas/' + idVenta);
     if (!venta.detalles || venta.detalles.length === 0) {

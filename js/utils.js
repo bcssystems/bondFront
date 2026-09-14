@@ -602,39 +602,32 @@ const Utils = {
     if (this._modalStackingInit) return;
     this._modalStackingInit = true;
 
+    let zCounter = 1055;
     const BASE_Z = 1055;
-    const STEP = 30;
-    const stack = [];
 
-    const restyle = (fromIdx) => {
-      stack.forEach((modalEl, idx) => {
-        if (idx < fromIdx) return;
-        const z = BASE_Z + idx * STEP;
-        modalEl.style.zIndex = z;
-        const backdrop = modalEl.dataset.__bsBackdrop;
-        if (backdrop) backdrop.style.zIndex = z - 1;
-      });
-    };
+    document.addEventListener('show.bs.modal', (e) => {
+      if (!e.target || typeof e.target.classList !== 'object' || !e.target.classList.contains('modal')) return;
+      zCounter += 10;
+      e.target.style.zIndex = String(zCounter);
+    });
 
     document.addEventListener('shown.bs.modal', (e) => {
-      if (!stack.includes(e.target)) {
-        stack.push(e.target);
-        e.target.dataset.__bsBackdrop = '';
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        if (backdrops.length) e.target.dataset.__bsBackdrop = backdrops[backdrops.length - 1];
+      const modalEl = e.target;
+      if (!modalEl || typeof modalEl.classList !== 'object' || !modalEl.classList.contains('modal')) return;
+      const z = parseInt(modalEl.style.zIndex) || BASE_Z;
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      const b = backdrops[backdrops.length - 1];
+      if (b) {
+        modalEl._bsBackdropEl = b;
+        b.style.zIndex = String(z - 1);
       }
-      restyle(0);
     });
 
     document.addEventListener('hidden.bs.modal', (e) => {
-      const idx = stack.indexOf(e.target);
-      if (idx >= 0) {
-        stack.splice(idx, 1);
-        const backdrop = e.target.dataset.__bsBackdrop;
-        if (backdrop) { try { backdrop.style.zIndex = ''; } catch (_) {} }
-        e.target.dataset.__bsBackdrop = '';
-      }
-      restyle(0);
+      const modalEl = e.target;
+      if (!modalEl) return;
+      if (modalEl._bsBackdropEl && modalEl._bsBackdropEl.style) modalEl._bsBackdropEl.style.zIndex = '';
+      modalEl._bsBackdropEl = null;
     });
   },
 };

@@ -1,4 +1,4 @@
-let state = { data: [], clientes: [], productos: [], cart: [], filtro: 'vigentes', productSearchTimeout: null, cancelandoId: null, sucursales: [], idSucursalSeleccionada: null };
+let state = { data: [], clientes: [], productos: [], cart: [], filtro: 'vigentes', productSearchTimeout: null, cancelandoId: null, sucursales: [], idSucursalSeleccionada: null, editingId: null };
 
 export function init() {
   bindEvents();
@@ -95,6 +95,7 @@ function handleTableClick(e) {
       { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verDetalle(id) },
     ];
     if (vigente) {
+      items.push({ icon: 'fa-pen', text: 'Editar', color: 'var(--warning)', onClick: () => abrirModalEditar(id) });
       items.push({ icon: 'fa-cash-register', text: 'Ir a Caja', color: 'var(--success)', onClick: () => irACaja(id) });
       items.push({ danger: true, icon: 'fa-ban', text: 'Cancelar', onClick: () => abrirCancelar(id) });
     }
@@ -202,11 +203,13 @@ async function cargarSucursales() {
 
 async function abrirModalNueva() {
   state.cart = [];
+  state.editingId = null;
   state.idSucursalSeleccionada = null;
   const form = document.getElementById('cotCliente');
   if (form) form.value = '';
   const sucSel = document.getElementById('cotSucursal');
   if (sucSel) sucSel.value = '';
+  document.getElementById('cotizacionModalTitle').textContent = 'Nueva Cotizaci\u00f3n';
   document.getElementById('cotDiasVigencia').value = '15';
   document.getElementById('cotPaqueteria').value = '';
   document.getElementById('cotCobraEnvio').checked = false;
@@ -221,6 +224,50 @@ async function abrirModalNueva() {
   toggleCreditoFields();
   renderCart();
   new bootstrap.Modal(document.getElementById('cotizacionModal')).show();
+}
+
+async function abrirModalEditar(id) {
+  try {
+    const c = await API.get('/cotizaciones/' + id);
+    state.editingId = id;
+    state.cart = [];
+    state.idSucursalSeleccionada = null;
+
+    document.getElementById('cotizacionModalTitle').textContent = 'Editar Cotizaci\u00f3n #' + id;
+    const form = document.getElementById('cotCliente');
+    if (form) form.value = c.idCliente || '';
+    const sucSel = document.getElementById('cotSucursal');
+    if (sucSel) sucSel.value = '';
+    document.getElementById('cotDiasVigencia').value = c.diasVigencia != null ? c.diasVigencia : '15';
+    document.getElementById('cotPaqueteria').value = c.paqueteria || '';
+    document.getElementById('cotCobraEnvio').checked = !!c.cobraEnvio;
+    document.getElementById('cotMontoEnvio').value = c.montoEnvio != null ? c.montoEnvio : '0';
+    document.getElementById('cotMontoEnvioWrapper')?.classList.toggle('d-none', !c.cobraEnvio);
+    document.getElementById('cotProductSearch').value = '';
+    document.getElementById('cotProductResults')?.classList.add('d-none');
+
+    const tipoVenta = c.tipoVenta || 'CONTADO';
+    const isCredito = tipoVenta === 'CREDITO';
+    document.getElementById('cotTipoContado').checked = !isCredito;
+    document.getElementById('cotTipoCredito').checked = isCredito;
+    document.getElementById('cotCreditoPlazo').value = c.plazoMeses != null ? c.plazoMeses : '3';
+    document.getElementById('cotCreditoInteres').value = c.porcentajeInteres != null ? c.porcentajeInteres : '0';
+    toggleCreditoFields();
+
+    state.cart = (c.detalles || []).map(d => ({
+      idProducto: d.idProducto,
+      nombre: d.productoNombre,
+      sku: d.productoSku || '',
+      cantidad: d.cantidad,
+      precioUnitario: d.precioUnitario,
+      stockActual: null,
+    }));
+
+    renderCart();
+    new bootstrap.Modal(document.getElementById('cotizacionModal')).show();
+  } catch (err) {
+    Utils.showToast(err.message, 'error');
+  }
 }
 
 async function buscarProductos(showAll) {
@@ -345,9 +392,12 @@ function renderCart() {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la cotizaci\u00f3n</p></div></td></tr>';
   } else {
     tbody.innerHTML = state.cart.map((d, i) => {
-      const stock = d.stockActual || 0;
-      const sinStock = stock <= 0;
-      const exceedsStock = d.cantidad > stock;
+      const stock = d.stockActual;
+      const sinStock = stock != null && stock <= 0;
+      const exceedsStock = stock != null && d.cantidad > stock;
+      const stockHtml = stock == null
+        ? '<span class="text-muted">&mdash;</span>'
+        : '<span class="fw-semibold ' + (exceedsStock ? 'text-danger' : (sinStock ? 'text-danger' : (stock <= 5 ? 'text-warning' : ''))) + '">' + stock + '</span>';
       return '<tr>' +
         '<td>' +
           '<div class="fw-semibold small">' + Utils.esc(d.nombre) + '</div>' +
@@ -360,9 +410,7 @@ function renderCart() {
             '<button class="pos-cart-qty-btn cot-cart-plus" data-index="' + i + '"><i class="fas fa-plus"></i></button>' +
           '</div>' +
         '</td>' +
-        '<td>' +
-          '<span class="fw-semibold ' + (exceedsStock ? 'text-danger' : (sinStock ? 'text-danger' : (stock <= 5 ? 'text-warning' : ''))) + '">' + stock + '</span>' +
-        '</td>' +
+        '<td>' + stockHtml + '</td>' +
         '<td>$' + d.precioUnitario.toFixed(2) + '</td>' +
         '<td class="fw-semibold' + (exceedsStock ? ' text-danger' : '') + '">$' + (d.cantidad * d.precioUnitario).toFixed(2) + '</td>' +
         '<td><button class="cot-cart-remove" data-index="' + i + '"><i class="fas fa-times"></i></button></td>' +
@@ -381,7 +429,7 @@ function renderCart() {
       btn.addEventListener('click', () => {
         const i = parseInt(btn.dataset.index);
         const item = state.cart[i];
-        if (item.cantidad >= item.stockActual) {
+        if (item.stockActual != null && item.cantidad >= item.stockActual) {
           Utils.showToast('Stock insuficiente: solo hay ' + item.stockActual + ' unidades de ' + item.nombre, 'warning');
           return;
         }
@@ -430,7 +478,7 @@ async function guardarCotizacion() {
     return;
   }
 
-  if (!state.idSucursalSeleccionada) {
+  if (!state.editingId && !state.idSucursalSeleccionada) {
     Utils.showToast('Selecciona una sucursal', 'warning');
     return;
   }
@@ -451,7 +499,7 @@ async function guardarCotizacion() {
   }));
 
   try {
-    await API.post('/cotizaciones', {
+    const payload = {
       idCliente: parseInt(idCliente),
       paqueteria,
       cobraEnvio,
@@ -462,9 +510,16 @@ async function guardarCotizacion() {
       plazoMeses,
       porcentajeInteres,
       detalles,
-    });
+    };
 
-    Utils.showToast('Cotizaci\u00f3n guardada exitosamente', 'success');
+    if (state.editingId) {
+      await API.put('/cotizaciones/' + state.editingId, payload);
+      Utils.showToast('Cotizaci\u00f3n actualizada', 'success');
+    } else {
+      await API.post('/cotizaciones', payload);
+      Utils.showToast('Cotizaci\u00f3n guardada exitosamente', 'success');
+    }
+    state.editingId = null;
     bootstrap.Modal.getInstance(document.getElementById('cotizacionModal'))?.hide();
     cargarCotizaciones();
   } catch (err) {

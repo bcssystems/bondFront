@@ -27,17 +27,22 @@ function bindEvents() {
       cargarClientesCredito();
     });
   });
+  document.getElementById('tableCreditosClientesBody')?.addEventListener('click', handleClienteClick);
   document.getElementById('tableCreditosBody')?.addEventListener('click', handleCreditoClick);
   document.getElementById('btnCerrarDetalle')?.addEventListener('click', cerrarDetalle);
+  document.getElementById('btnCerrarEstadoCuenta')?.addEventListener('click', cerrarDetalle);
   document.getElementById('creditoDetalleModal')?.addEventListener('hidden.bs.modal', () => {
     state.selectedClienteId = null;
     state.creditos = [];
     state.movimientos = [];
   });
-  document.getElementById('btnAbonarTodas')?.addEventListener('click', abrirAbonoGeneralModal);
+  document.getElementById('estadoCuentaModal')?.addEventListener('hidden.bs.modal', () => {
+    state.selectedClienteId = null;
+    state.creditos = [];
+    state.movimientos = [];
+  });
+  document.getElementById('btnAbonarTodas')?.addEventListener('click', abonarTodasEnPOS);
   document.getElementById('btnImprimirEstadoCuenta')?.addEventListener('click', imprimirEstadoCuenta);
-  document.getElementById('btnConfirmarAbono')?.addEventListener('click', confirmarAbono);
-  document.getElementById('btnConfirmarAbonoGeneral')?.addEventListener('click', confirmarAbonoGeneral);
   document.getElementById('abonoTipo')?.addEventListener('change', function() {
     const montoInput = document.getElementById('abonoMonto');
     if (this.value === 'LIQUIDACION') {
@@ -83,7 +88,14 @@ async function procesarIntentoCreditoCliente() {
   const raw = localStorage.getItem('creditosParaCliente');
   if (!raw) return;
   localStorage.removeItem('creditosParaCliente');
-  const id = parseInt(raw);
+  let id = parseInt(raw), vista = 'creditos';
+  if (raw.charAt(0) === '{') {
+    try {
+      const obj = JSON.parse(raw);
+      id = parseInt(obj.id);
+      vista = obj.vista === 'estado' ? 'estado' : 'creditos';
+    } catch (_) {}
+  }
   if (!id) return;
   let cliente = state.clientes.find(c => c.idCliente === id);
   if (!cliente) {
@@ -94,10 +106,43 @@ async function procesarIntentoCreditoCliente() {
       state.clientes.unshift(cliente);
       renderClientes();
     }
-    seleccionarCliente(id);
+    seleccionarCliente(id, vista);
   } else {
     Utils.showToast('No se encontr\u00f3 el cliente', 'warning');
   }
+}
+
+function handleClienteClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (!kebab) return;
+  e.preventDefault();
+  abrirAccionesCliente(kebab, parseInt(kebab.dataset.id));
+}
+
+function abrirAccionesCliente(anchor, id) {
+  const cliente = state.clientes.find(x => x.idCliente === id);
+  const items = [
+    { icon: 'fa-file-invoice', text: 'Estado de cuenta', color: 'var(--primary)', onClick: () => seleccionarCliente(id, 'estado') },
+    { icon: 'fa-list', text: 'Cr\u00e9ditos pendientes', color: 'var(--primary)', onClick: () => seleccionarCliente(id, 'creditos') },
+    { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, cliente) },
+  ];
+  Utils.abrirMenuKebab(anchor, items);
+}
+
+function abonarEnPOS(id, cliente, idCredito) {
+  localStorage.setItem('abonoParaPOS', JSON.stringify({
+    idCliente: id,
+    idCredito: idCredito || null,
+    nombre: (cliente?.nombre || '') + ' ' + (cliente?.apellidoPaterno || ''),
+  }));
+  Utils.showToast('Abriendo POS para registrar el abono', 'info');
+  document.querySelector('[data-view="pages/ventas.html"]')?.click();
+}
+
+function abonarTodasEnPOS() {
+  if (state.selectedClienteId == null) return;
+  const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+  abonarEnPOS(state.selectedClienteId, cliente);
 }
 
 function renderClientes() {
@@ -119,55 +164,26 @@ function renderClientes() {
       <td class="text-end">$${Math.max(0, disponible).toFixed(2)}</td>
       <td>
         <div class="d-flex justify-content-end">
-          <button class="btn btn-sm btn-outline-primary px-3 kebab-toggle-cliente" data-id="${c.idCliente}" title="Acciones">
-            <i class="fas fa-ellipsis-h"></i>
-          </button>
+          <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCliente}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
         </div>
       </td>
     </tr>`;
   }).join('');
-
-  tbody.querySelectorAll('.kebab-toggle-cliente').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      const cliente = state.clientes.find(x => x.idCliente === id);
-      const items = [
-        { icon: 'fas fa-file-invoice', label: 'Estado de cuenta', action: 'estado-cuenta' },
-        { icon: 'fas fa-list', label: 'Cr\u00e9ditos pendientes', action: 'creditos' },
-        { icon: 'fas fa-money-bill-wave', label: 'Abonar', action: 'abonar' },
-        { icon: 'fas fa-cash-register', label: 'Abonar en POS', action: 'abonar-pos' },
-      ];
-      Utils.abrirMenuKebab(btn, items.map(it => ({
-        ...it,
-        onClick: () => {
-          if (it.action === 'estado-cuenta' || it.action === 'creditos') seleccionarCliente(id);
-          else if (it.action === 'abonar') {
-            state.selectedClienteId = id;
-            abrirAbonoGeneralModal();
-          } else if (it.action === 'abonar-pos') {
-            localStorage.setItem('abonoParaPOS', JSON.stringify({
-              idCliente: id,
-              nombre: (cliente?.nombre || '') + ' ' + (cliente?.apellidoPaterno || ''),
-            }));
-            Utils.showToast('Abriendo POS para registrar el abono', 'info');
-            document.querySelector('[data-view="pages/ventas.html"]')?.click();
-          }
-        },
-      })));
-    });
-  });
 }
 
-async function seleccionarCliente(id) {
+async function seleccionarCliente(id, vista) {
   state.selectedClienteId = id;
   const cliente = state.clientes.find(c => c.idCliente === id);
   if (!cliente) return;
 
-  document.getElementById('creditoClienteName').textContent = (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '');
-  document.getElementById('abonoGeneralCliente').textContent = (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '');
+  const nombreCliente = (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '');
+  document.getElementById('creditoClienteName').textContent = nombreCliente;
+  const estadoName = document.getElementById('estadoCuentaClienteName');
+  if (estadoName) estadoName.textContent = nombreCliente;
+  document.getElementById('abonoGeneralCliente').textContent = nombreCliente;
 
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('creditoDetalleModal')).show();
+  const modalEl = vista === 'estado' ? document.getElementById('estadoCuentaModal') : document.getElementById('creditoDetalleModal');
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 
   await Promise.all([
     cargarCreditosCliente(id),
@@ -190,10 +206,11 @@ function renderDetalle() {
 }
 
 function actualizarDeudaTotal() {
-  const el = document.getElementById('estadoDeudaTotal');
-  if (!el) return;
   const total = (state.creditos || []).reduce((s, c) => s + (c.saldoPendiente || 0), 0);
-  el.textContent = '$' + total.toFixed(2);
+  const el = document.getElementById('estadoDeudaTotal');
+  if (el) el.textContent = '$' + total.toFixed(2);
+  const el2 = document.getElementById('creditosDeudaTotal');
+  if (el2) el2.textContent = '$' + total.toFixed(2);
 }
 
 function renderCreditos() {
@@ -210,7 +227,7 @@ function renderCreditos() {
       c.estado === 'PAGADO' ? 'bg-success' :
       c.estado === 'VENCIDO' ? 'bg-danger' : 'bg-secondary';
     const abonoBtn = c.estado === 'ACTIVO'
-      ? '<button class="btn btn-sm btn-success abono-btn" data-id="' + c.idCredito + '" title="Abonar"><i class="fas fa-money-bill-wave"></i></button>'
+      ? '<button class="btn btn-sm btn-success abono-btn" data-credito-id="' + c.idCredito + '" title="Abonar en caja"><i class="fas fa-money-bill-wave"></i></button>'
       : '';
     return `<tr>
       <td>${c.idCredito}</td>
@@ -235,7 +252,8 @@ function handleCreditoClick(e) {
   if (!credito) return;
 
   if (e.target.closest('.abono-btn')) {
-    abrirAbonoModal(credito.idCredito);
+    const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+    if (cliente) abonarEnPOS(state.selectedClienteId, cliente, credito.idCredito);
     return;
   }
   const accion = e.target.closest('[data-action]')?.dataset?.action;
@@ -331,7 +349,10 @@ function cerrarDetalle() {
   state.selectedClienteId = null;
   state.creditos = [];
   state.movimientos = [];
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('creditoDetalleModal'))?.hide();
+  const m1 = bootstrap.Modal.getInstance(document.getElementById('creditoDetalleModal'));
+  if (m1) m1.hide();
+  const m2 = bootstrap.Modal.getInstance(document.getElementById('estadoCuentaModal'));
+  if (m2) m2.hide();
 }
 
 function limpiarBusqueda() {

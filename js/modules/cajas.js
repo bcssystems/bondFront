@@ -259,6 +259,10 @@ async function previewCorte(id) {
           <small class="text-muted">Egresos</small>
           <h5 class="mb-0 text-danger">$${corte.totalEgresos.toFixed(2)}</h5>
         </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
+          <h5 class="mb-0" style="color:var(--info)">$${(corte.totalAbonos || 0).toFixed(2)}</h5>
+        </div></div>
       </div>
       <hr>
       <div class="text-center">

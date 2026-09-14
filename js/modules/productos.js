@@ -223,7 +223,7 @@ function renderProductoNode(p) {
       <span class="producto-nombre"><strong>${Utils.esc(p.nombre)}</strong>${categoria}</span>
       <span class="producto-unidad">${Utils.esc(unidad)}</span>
       <span class="producto-stock ${stockClass}">${stockDisplay}</span>
-      <span class="producto-rollos">${rollos != null ? rollos : '\u2014'}</span>
+      <span class="producto-rollos">${rollos != null ? rollos : ''}</span>
       <span class="producto-precio">$${(p.precioBase || 0).toFixed(2)}</span>
       <span class="badge-status ${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
       <div class="producto-actions">

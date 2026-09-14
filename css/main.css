@@ -950,6 +950,29 @@ body {
 }
 .pos-panel-espera-tabs .nav-tabs .nav-link {
   padding: 3px 10px;
+  margin-bottom: 2px;
+}
+.pos-panel-espera-tabs .pos-espera-item {
+  display: inline-flex;
+  align-items: center;
+}
+.pos-panel-espera-tabs .pos-espera-close {
+  border: none;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.6rem;
+  padding: 2px 5px;
+  margin-left: -4px;
+  border-radius: 50%;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.15s ease;
+}
+.pos-panel-espera-tabs .pos-espera-close:hover {
+  color: var(--danger, #ef4444);
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
 }
 .pos-panel-espera {
   flex-shrink: 0;

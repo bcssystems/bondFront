@@ -7,6 +7,7 @@ let state = {
   paises: [],
   preciosClienteId: null,
   detalleClienteId: null,
+  showInactive: false,
 };
 
 const REGIMENES_FISCALES = [
@@ -41,6 +42,7 @@ function bindEvents() {
   document.getElementById('btnDetalleCreditoCliente')?.addEventListener('click', irACreditosDesdeDetalle);
   document.getElementById('searchCliente')?.addEventListener('input', Utils.debounce(() => cargarClientes(0), 400));
   document.getElementById('filtroListaNegra')?.addEventListener('change', () => cargarClientes(0));
+  document.getElementById('btnToggleClientesInactivos')?.addEventListener('click', toggleInactivos);
   document.getElementById('clienteTieneCredito')?.addEventListener('change', function () {
     toggleLimiteCreditoGroup(this.checked);
   });
@@ -98,7 +100,7 @@ async function cargarClientes(page) {
       state.data = result || [];
       state.totalPages = 1;
     } else {
-      result = await API.get('/clientes?search=' + encodeURIComponent(search) + '&page=' + page + '&size=' + state.pageSize);
+      result = await API.get('/clientes?search=' + encodeURIComponent(search) + '&activo=' + (state.showInactive ? 'false' : 'true') + '&page=' + page + '&size=' + state.pageSize);
       state.data = result.content;
       state.totalPages = result.totalPages;
     }
@@ -149,6 +151,18 @@ function renderTable() {
       toggleListaNegra(parseInt(cb.dataset.id), cb.checked, cb.dataset.nombre);
     });
   });
+}
+
+function toggleInactivos() {
+  state.showInactive = !state.showInactive;
+  state.currentPage = 0;
+  const btn = document.getElementById('btnToggleClientesInactivos');
+  if (btn) {
+    btn.innerHTML = state.showInactive
+      ? '<i class="fas fa-eye-slash me-1"></i> Mostrar activos'
+      : '<i class="fas fa-eye me-1"></i> Mostrar inactivos';
+  }
+  cargarClientes(0);
 }
 
 function renderPagination() {
@@ -211,19 +225,19 @@ function abrirAccionesCliente(anchor, id) {
 }
 
 function irACreditos(id) {
-  localStorage.setItem('creditosParaCliente', String(id));
+  localStorage.setItem('creditosParaCliente', JSON.stringify({ id, vista: 'estado' }));
   document.querySelector('[data-view="pages/creditos.html"]')?.click();
 }
 
 function irACreditosPendientes(id) {
-  localStorage.setItem('creditosParaCliente', String(id));
+  localStorage.setItem('creditosParaCliente', JSON.stringify({ id, vista: 'creditos' }));
   document.querySelector('[data-view="pages/creditos.html"]')?.click();
 }
 
 function irACreditosDesdeDetalle() {
   const id = state.detalleClienteId;
   if (!id) return;
-  localStorage.setItem('creditosParaCliente', String(id));
+  localStorage.setItem('creditosParaCliente', JSON.stringify({ id, vista: 'creditos' }));
   document.querySelector('[data-view="pages/creditos.html"]')?.click();
 }
 
