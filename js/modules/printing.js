@@ -514,6 +514,122 @@ export function printRemisionVenta(venta, opts) {
   }
 }
 
+export function printCotizacion(cotizacion, opts) {
+  const options = opts || {};
+  const esCredito = options.esCredito != null ? options.esCredito : cotizacion.tipoVenta === 'CREDITO';
+  const porcentajeInteres = options.porcentajeInteres != null ? options.porcentajeInteres : (cotizacion.porcentajeInteres || 0);
+  const plazoMeses = options.plazoMeses != null ? options.plazoMeses : cotizacion.plazoMeses;
+  const configs = options.configs || {};
+
+  const now = new Date();
+  const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+  const subtotal = (cotizacion.detalles || []).reduce((s, d) =>
+    s + (d.subtotal != null ? d.subtotal : ((d.cantidad || 0) * (d.precioUnitario || 0))), 0);
+  const montoEnvio = (cotizacion.cobraEnvio && cotizacion.montoEnvio) ? cotizacion.montoEnvio : 0;
+  const total = cotizacion.total != null ? cotizacion.total : (subtotal + montoEnvio);
+  const totalConInteres = esCredito ? total + (total * porcentajeInteres / 100) : total;
+
+  const detalleRows = (cotizacion.detalles || []).map(d => {
+    const dSubtotal = d.subtotal != null ? d.subtotal : ((d.cantidad || 0) * (d.precioUnitario || 0));
+    const nombre = Utils.esc(d.productoNombre || 'Producto');
+    const sku = d.productoSku ? '<br><span class="detalle-attrs">SKU: ' + Utils.esc(d.productoSku) + '</span>' : '';
+    return `
+    <tr class="detalle-row">
+      <td>${nombre}${sku}</td>
+      <td class="center">${d.cantidad || 0}</td>
+      <td class="center small">—</td>
+      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
+      <td class="right">$${dSubtotal.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const pagoHtml = esCredito
+    ? `<tr><td>Cr\u00e9dito &mdash; Plazo ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">$${totalConInteres.toFixed(2)}</td></tr>
+       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}%</td><td class="right">$${(total * porcentajeInteres / 100).toFixed(2)}</td></tr>`
+    : `<tr><td>Contado</td><td class="right">$${total.toFixed(2)}</td></tr>`;
+
+  const expiraStr = cotizacion.fechaExpiracion
+    ? new Date(cotizacion.fechaExpiracion).toLocaleDateString('es-MX')
+    : (cotizacion.diasVigencia != null ? (cotizacion.diasVigencia + ' d\u00edas') : '-');
+
+  const ganchoEmpresa = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
+  const telefonoEmpresa = configs['telefonoEmpresa'] || '';
+
+  const totalesHtml = `
+  <div class="divider"></div>
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
+    <tr><td>Env\u00edo</td><td class="right">$${montoEnvio.toFixed(2)}</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td class="right">$${(esCredito ? totalConInteres : total).toFixed(2)}</td></tr>
+  </table>
+  <div class="divider"></div>
+  <div class="section">
+    <div class="section-title">Forma de Pago</div>
+    <table class="totals">
+      ${pagoHtml}
+    </table>
+  </div>
+  ${cotizacion.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(cotizacion.nota)}</div>` : ''}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Cotizaci\u00f3n #${cotizacion.idCotizacion}</title>
+  <style>${TICKET_CSS}</style>
+</head>
+<body>
+<div class="print-copy">
+  <div class="header">
+    <h1>BONDS</h1>
+    <div class="sub">Sistema de Administraci\u00f3n</div>
+    <div class="folio">COTIZACI\u00d3N #${cotizacion.idCotizacion}</div>
+  </div>
+  <table class="info-grid">
+    <tr><td class="label">Fecha</td><td class="value">${fechaStr}</td><td class="label">Atendi\u00f3</td><td class="value">${Utils.esc(cotizacion.usuarioNombre || '')}</td></tr>
+    <tr><td class="label">Hora</td><td class="value">${horaStr}</td><td class="label">Paqueter\u00eda</td><td class="value">${Utils.esc(cotizacion.paqueteria || '—')}</td></tr>
+    <tr><td class="label">Cliente</td><td class="value">${Utils.esc(cotizacion.clienteNombre || '')}</td><td class="label">Tipo</td><td class="value">${esCredito ? 'CR\u00c9DITO' : 'CONTADO'}</td></tr>
+    <tr><td class="label">Vigencia</td><td class="value">V\u00e1lida hasta ${expiraStr}</td><td class="label">Folio</td><td class="value">#${cotizacion.idCotizacion}</td></tr>
+  </table>
+  <div class="divider"></div>
+  <table class="detalles">
+    <thead>
+      <tr>
+        <th style="width:38%">Descripci\u00f3n</th>
+        <th class="center" style="width:9%">Cant</th>
+        <th class="center" style="width:12%">Unidad</th>
+        <th class="right" style="width:18%">Precio</th>
+        <th class="right" style="width:23%">Importe</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${detalleRows}
+    </tbody>
+  </table>
+  ${totalesHtml}
+  <div class="bottom-section">
+    <div class="footer">
+      <strong>BONDS</strong> &mdash; ${Utils.esc(ganchoEmpresa)}${telefonoEmpresa ? ' &mdash; ' + Utils.esc(telefonoEmpresa) : ''}<br>
+      Este documento es una cotizaci\u00f3n y no constituye venta ni factura<br>
+      ${fechaStr} ${horaStr}
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win = abrirVentana('Cotizaci\u00f3n #' + cotizacion.idCotizacion, 600, 800);
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  if (options.autoPrint !== false) {
+    setTimeout(() => { win.print(); }, 300);
+  }
+}
+
 export function printEstadoCuenta(payload) {
   const configs = payload.configs || {};
   const cliente = payload.cliente || {};

@@ -37,10 +37,13 @@ function bindEvents() {
 }
 
 function handleTableClick(e) {
-  const btn = e.target.closest('.ver-corte-btn');
-  if (btn) {
-    const id = parseInt(btn.dataset.id);
-    verCorte(id);
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    const id = parseInt(kebab.dataset.id);
+    Utils.abrirMenuKebab(kebab, [
+      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verCorte(id) },
+    ]);
+    return;
   }
 }
 
@@ -103,7 +106,7 @@ async function buscar(page) {
         <td>${Utils.formatDateTime(c.fechaApertura)}</td>
         <td>${Utils.formatDateTime(c.fechaCierre)}</td>
         <td>${Utils.esc(c.usuario || '')}</td>
-        <td><button class="btn btn-sm btn-outline-primary ver-corte-btn" data-id="${c.idCorte}" title="Ver detalle"><i class="fas fa-eye"></i></button></td>
+        <td><button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCorte}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
       </tr>`).join('');
     }
 

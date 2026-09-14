@@ -90,6 +90,10 @@
             <label class="form-label fw-semibold">Monto Env&iacute;o</label>
             <input type="number" class="form-control form-control-sm" id="cotMontoEnvio" value="0" min="0" step="0.01">
           </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nota</label>
+            <textarea class="form-control form-control-sm" id="cotNota" rows="2" maxlength="500" placeholder="Nota u observaciones que se mostrar&aacute;n y se imprimir&aacute;n en la cotizaci&oacute;n..."></textarea>
+          </div>
         </div>
 
         <hr>
@@ -204,6 +208,10 @@
       </div>
       <div class="modal-body" id="cotDetalleBody">
         <p class="text-muted">Cargando...</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-outline-primary btn-sm ripple" id="btnImprimirCotizacion"><i class="fas fa-print me-1"></i> Imprimir / PDF</button>
       </div>
     </div>
   </div>

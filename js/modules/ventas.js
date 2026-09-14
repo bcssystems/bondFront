@@ -22,6 +22,7 @@ let state = {
   preciosClienteMap: {},
   configs: {},
   abonoPOSClienteId: null,
+  posProductPanelOpen: false,
 };
 
 const REGIMENES_FISCALES = [
@@ -137,6 +138,7 @@ function bindEvents() {
       input.value = '';
       input.focus();
     }
+    state.posProductPanelOpen = true;
     buscarProductos(true);
   });
 
@@ -153,6 +155,7 @@ function bindEvents() {
       const results = document.getElementById('posProductResults');
       if (results && !e.target.closest('.pos-panel-product-search')) {
         results.classList.add('d-none');
+        state.posProductPanelOpen = false;
       }
     });
   }
@@ -322,6 +325,11 @@ function cantidadEnEsperaSucursal(idProducto) {
   return total;
 }
 
+function stockCajaDisponible(producto) {
+  if (!producto) return 0;
+  return getStockSucursal(producto) + cantidadEnEsperaSucursal(producto.idProducto);
+}
+
 function isReservadoPorOtraCaja(productoId) {
   return state.reservas.some(r => r.idProducto === productoId && r.idCaja !== state.caja?.idCaja);
 }
@@ -375,9 +383,9 @@ function iniciarPollingCaja() {
   state._pollInterval = setInterval(async () => {
     if (!state.caja) { detenerPollingCaja(); return; }
     await cargarReservasSucursal();
-    if (state.productos.length > 0) {
+    if (state.posProductPanelOpen && state.productos.length > 0) {
       const list = document.getElementById('posProductList');
-      if (list) buscarProductos();
+      if (list) buscarProductos(true);
     }
     const reservasCaja = state.reservas.filter(r => r.idCaja === state.caja.idCaja);
     const cartServerCount = state.cart.filter(d => d.sku !== 'VR' && d.sku !== 'ENVIO').length;
@@ -515,6 +523,7 @@ async function buscarProductos(showAll) {
 
   if (q.length < 1 && !showAll) {
     results.classList.add('d-none');
+    state.posProductPanelOpen = false;
     return;
   }
 
@@ -607,7 +616,7 @@ async function agregarAlCart(prodId) {
 
   const existente = state.cart.find(d => d.idProducto === prodId);
   if (existente) {
-    if (existente.cantidad >= stockSuc) {
+    if (existente.cantidad >= stockCajaDisponible(p)) {
       Utils.showToast('Stock insuficiente en esta sucursal', 'warning');
       return;
     }
@@ -646,6 +655,7 @@ async function agregarAlCart(prodId) {
 
   renderCart();
   document.getElementById('posProductResults')?.classList.add('d-none');
+  state.posProductPanelOpen = false;
   document.getElementById('posProductSearch').value = '';
 }
 
@@ -695,7 +705,7 @@ function renderCart() {
         }
         if (item.sku === 'ENVIO') { renderCart(); return; }
         const p = state.productos.find(x => x.idProducto === item.idProducto);
-        if (p && newQty > getStockSucursal(p)) {
+        if (p && newQty > stockCajaDisponible(p)) {
           Utils.showToast('Stock insuficiente en esta sucursal', 'warning');
           input.value = item.cantidad;
           return;
@@ -769,7 +779,7 @@ function renderCart() {
           renderCart();
           return;
         }
-        if (p && item.cantidad >= getStockSucursal(p)) {
+        if (p && item.cantidad >= stockCajaDisponible(p)) {
           Utils.showToast('Stock insuficiente en esta sucursal', 'warning');
           return;
         }
@@ -1237,13 +1247,15 @@ function imprimirTicketCorte(corte) {
 }
 
 function construirDetallesEspera() {
-  return state.cart.map(d => ({
-    idProducto: d.idProducto,
-    descripcion: null,
-    cantidad: d.cantidad,
-    precioUnitario: d.precioUnitario,
-    subtotal: d.cantidad * d.precioUnitario,
-  }));
+  return state.cart
+    .filter(d => d.idProducto != null && d.idProducto > 0)
+    .map(d => ({
+      idProducto: d.idProducto,
+      descripcion: null,
+      cantidad: d.cantidad,
+      precioUnitario: d.precioUnitario,
+      subtotal: d.cantidad * d.precioUnitario,
+    }));
 }
 
 async function guardarEsperaActiva() {
@@ -1646,6 +1658,14 @@ async function reanudarEspera(idVenta) {
     return;
   }
   try {
+    if (!state.activeEsperaId && state.cart.length > 0) {
+      await ponerEnEspera();
+      if (state.cart.length > 0) {
+        Utils.showToast('No se pudo guardar la venta actual en espera. Intenta de nuevo.', 'error');
+        return;
+      }
+    }
+
     if (state.activeEsperaId) {
       await guardarEsperaActiva();
       state.activeEsperaId = null;
@@ -1675,15 +1695,18 @@ async function reanudarEspera(idVenta) {
     }
 
     state.activeEsperaId = idVenta;
-    state.cart = venta.detalles.map(d => ({
-      idProducto: d.idProducto,
-      nombre: d.productoNombre || d.descripcion || 'Producto',
-      sku: d.productoSku || '',
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario,
-      unidadMedida: d.unidadMedida || 'UNIDAD',
-      stockActual: d.stockActual != null ? d.stockActual : 0,
-    }));
+    state.cart = venta.detalles.map(d => {
+      const prod = state.productos.find(x => x.idProducto === d.idProducto);
+      return {
+        idProducto: d.idProducto,
+        nombre: d.productoNombre || d.descripcion || 'Producto',
+        sku: d.productoSku || '',
+        cantidad: d.cantidad,
+        precioUnitario: d.precioUnitario,
+        unidadMedida: d.unidadMedida || 'UNIDAD',
+        stockActual: prod ? stockCajaDisponible(prod) : 0,
+      };
+    });
     actualizarPreciosCart();
 
     Utils.showToast('Venta en espera recuperada. Modifica y cobra.', 'success');

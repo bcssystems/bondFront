@@ -1,4 +1,6 @@
-let state = { data: [], clientes: [], productos: [], cart: [], filtro: 'vigentes', productSearchTimeout: null, cancelandoId: null, sucursales: [], idSucursalSeleccionada: null, editingId: null };
+import { printCotizacion } from './printing.js';
+
+let state = { data: [], clientes: [], productos: [], cart: [], filtro: 'vigentes', productSearchTimeout: null, cancelandoId: null, sucursales: [], idSucursalSeleccionada: null, editingId: null, detalleActual: null };
 
 export function init() {
   bindEvents();
@@ -37,6 +39,9 @@ function bindEvents() {
   document.getElementById('cotCartBody')?.addEventListener('click', handleCartClick);
   document.getElementById('btnGuardarCotizacion')?.addEventListener('click', guardarCotizacion);
   document.getElementById('btnConfirmarCancelarCot')?.addEventListener('click', confirmarCancelar);
+  document.getElementById('btnImprimirCotizacion')?.addEventListener('click', () => {
+    if (state.detalleActual) printCotizacion(state.detalleActual);
+  });
   document.getElementById('cotSucursal')?.addEventListener('change', (e) => {
     state.idSucursalSeleccionada = parseInt(e.target.value) || null;
     if (state.productos.length > 0) buscarProductos(document.getElementById('cotProductSearch')?.value?.trim() ? false : true);
@@ -93,6 +98,7 @@ function handleTableClick(e) {
     const vigente = c && c.estado === 'VIGENTE';
     const items = [
       { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verDetalle(id) },
+      { icon: 'fa-print', text: 'Imprimir / PDF', color: 'var(--secondary)', onClick: () => printCotizacion(c) },
     ];
     if (vigente) {
       items.push({ icon: 'fa-pen', text: 'Editar', color: 'var(--warning)', onClick: () => abrirModalEditar(id) });
@@ -215,6 +221,7 @@ async function abrirModalNueva() {
   document.getElementById('cotCobraEnvio').checked = false;
   document.getElementById('cotMontoEnvio').value = '0';
   document.getElementById('cotMontoEnvioWrapper')?.classList.add('d-none');
+  document.getElementById('cotNota').value = '';
   document.getElementById('cotProductSearch').value = '';
   document.getElementById('cotProductResults')?.classList.add('d-none');
   document.getElementById('cotTipoContado').checked = true;
@@ -243,6 +250,7 @@ async function abrirModalEditar(id) {
     document.getElementById('cotCobraEnvio').checked = !!c.cobraEnvio;
     document.getElementById('cotMontoEnvio').value = c.montoEnvio != null ? c.montoEnvio : '0';
     document.getElementById('cotMontoEnvioWrapper')?.classList.toggle('d-none', !c.cobraEnvio);
+    document.getElementById('cotNota').value = c.nota || '';
     document.getElementById('cotProductSearch').value = '';
     document.getElementById('cotProductResults')?.classList.add('d-none');
 
@@ -491,6 +499,7 @@ async function guardarCotizacion() {
   const tipoVenta = document.querySelector('input[name="cotTipoVenta"]:checked')?.value || 'CONTADO';
   const plazoMeses = tipoVenta === 'CREDITO' ? (parseInt(document.getElementById('cotCreditoPlazo')?.value) || null) : null;
   const porcentajeInteres = tipoVenta === 'CREDITO' ? (parseFloat(document.getElementById('cotCreditoInteres')?.value) || 0) : null;
+  const nota = document.getElementById('cotNota')?.value?.trim() || null;
 
   const detalles = state.cart.map(d => ({
     idProducto: d.idProducto,
@@ -509,19 +518,26 @@ async function guardarCotizacion() {
       tipoVenta,
       plazoMeses,
       porcentajeInteres,
+      nota,
       detalles,
     };
 
+    let creada = null;
     if (state.editingId) {
       await API.put('/cotizaciones/' + state.editingId, payload);
       Utils.showToast('Cotizaci\u00f3n actualizada', 'success');
     } else {
-      await API.post('/cotizaciones', payload);
+      creada = await API.post('/cotizaciones', payload);
       Utils.showToast('Cotizaci\u00f3n guardada exitosamente', 'success');
     }
     state.editingId = null;
     bootstrap.Modal.getInstance(document.getElementById('cotizacionModal'))?.hide();
     cargarCotizaciones();
+
+    if (creada) {
+      const imprimir = await Utils.confirm('Cotizaci\u00f3n #' + creada.idCotizacion + ' guardada por $' + creada.total.toFixed(2), '\u00bfDeseas imprimir la cotizaci\u00f3n?');
+      if (imprimir) printCotizacion(creada);
+    }
   } catch (err) {
     Utils.showToast(err.message, 'error');
   }
@@ -530,6 +546,7 @@ async function guardarCotizacion() {
 async function verDetalle(id) {
   try {
     const c = await API.get('/cotizaciones/' + id);
+    state.detalleActual = c;
     document.getElementById('cotDetalleTitle').textContent = 'Cotizaci\u00f3n #' + c.idCotizacion;
 
     const envioHtml = c.cobraEnvio
@@ -580,6 +597,10 @@ async function verDetalle(id) {
 
     html += '</tbody></table></div>';
     html += '<div class="text-end mt-3"><span class="fw-bold fs-5" style="color:var(--primary)">Total: $' + c.total.toFixed(2) + '</span></div>';
+
+    if (c.nota) {
+      html += '<div class="mt-3 p-3 rounded small" style="background:#fff8e6;border:1px solid #f0d58c"><strong>Nota:</strong> ' + Utils.esc(c.nota) + '</div>';
+    }
 
     document.getElementById('cotDetalleBody').innerHTML = html;
     new bootstrap.Modal(document.getElementById('cotizacionDetalleModal')).show();
