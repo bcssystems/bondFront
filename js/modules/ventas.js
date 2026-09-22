@@ -10,6 +10,7 @@ let state = {
   editingVentaEspera: null,
   productSearchTimeout: null,
   reanudandoVentaId: null,
+  cobroEnviadoId: null,
   activeEsperaId: null,
   esperaVentas: [],
   activeEsperaTab: null,
@@ -95,6 +96,10 @@ async function entrarCajaNormal() {
 function bindEvents() {
   document.getElementById('btnCobrarPOS')?.addEventListener('click', cobrarVenta);
   document.getElementById('btnConfirmarCobroPOS')?.addEventListener('click', confirmarCobro);
+  document.getElementById('btnImprimirPOS')?.addEventListener('click', imprimirVentaPendiente);
+  document.getElementById('posCobroModal')?.addEventListener('hidden.bs.modal', () => {
+    state.cobroEnviadoId = null;
+  });
   document.getElementById('btnConfirmarCreditoPOS')?.addEventListener('click', confirmarCreditoPOS);
   document.getElementById('btnEsperaPOS')?.addEventListener('click', ponerEnEspera);
   document.getElementById('btnNuevoClientePOS')?.addEventListener('click', () => abrirClienteModal());
@@ -976,6 +981,11 @@ function recalcularSumaCobro() {
 async function confirmarCobro() {
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
+  if (state.cobroEnviadoId) {
+    await confirmarPagoEnviado();
+    return;
+  }
+
   const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
   const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
@@ -1071,6 +1081,89 @@ async function confirmarCobro() {
       } catch (_) {}
       state.idCotizacionActiva = null;
     }
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function imprimirVentaPendiente() {
+  if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
+  if (state.cart.length === 0) { Utils.showToast('Agrega productos a la venta', 'warning'); return; }
+  if (state.activeEsperaId) {
+    Utils.showToast('Guardar o cerrar la venta en espera activa antes de imprimir otra venta', 'warning');
+    return;
+  }
+
+  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
+  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const clienteId = parseInt(document.getElementById('posCliente').value) || null;
+
+  const request = {
+    idCaja: state.caja.idCaja,
+    idCliente: clienteId || null,
+    tipoVenta: 'CONTADO',
+    precioSeleccionado: 1,
+    subtotal: subtotal,
+    descuento: subtotal - total,
+    total: total,
+    nota: null,
+    detalles: state.cart.map(d => ({
+      idProducto: d.sku === 'ENVIO' ? null : d.idProducto,
+      descripcion: d.sku === 'ENVIO' ? (d.descripcion || d.nombre) : null,
+      cantidad: d.cantidad,
+      precioUnitario: d.precioUnitario,
+      subtotal: d.cantidad * d.precioUnitario,
+      atributosText: null,
+    })),
+    pagos: null,
+    enviandoPedido: true,
+  };
+
+  try {
+    const venta = await API.post('/ventas', request);
+    imprimirTicketVenta(venta);
+    Utils.showToast('Venta impresa, pendiente de cobro', 'success');
+    await limpiarCart();
+    await cargarEsperas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function abrirCobroEnviado(venta) {
+  state.cobroEnviadoId = venta.idVenta;
+  document.getElementById('posCobroTotal').textContent = '$' + venta.total.toFixed(2);
+  document.getElementById('posCobroNota').value = venta.nota || '';
+  await cargarFormasPagoCobro();
+  new bootstrap.Modal(document.getElementById('posCobroModal')).show();
+}
+
+async function confirmarPagoEnviado() {
+  if (!state.cobroEnviadoId) return;
+  const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
+  const pagos = [];
+  document.querySelectorAll('.payment-monto').forEach(inp => {
+    if (inp.dataset.credito) return;
+    const monto = parseFloat(inp.value) || 0;
+    if (monto <= 0) return;
+    const idTipoPago = parseInt(inp.dataset.id);
+    const refInput = document.querySelector(`.payment-referencia[data-id="${idTipoPago}"]`);
+    const referencia = refInput ? refInput.value.trim() || null : null;
+    pagos.push({ idTipoPago, monto, referencia });
+  });
+  if (pagos.length === 0) {
+    Utils.showToast('Selecciona al menos una forma de pago', 'warning');
+    return;
+  }
+  const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+  if (sumaPagos + 0.01 < total) {
+    Utils.showToast('La suma de los pagos debe ser al menos igual al total', 'warning');
+    return;
+  }
+  try {
+    const venta = await API.post('/ventas/' + state.cobroEnviadoId + '/pagar', pagos);
+    Utils.showToast('Pago registrado, venta completada', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
+    state.cobroEnviadoId = null;
+    await refreshCaja();
+    await cargarEsperas();
+    imprimirTicketVenta(venta);
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -1602,16 +1695,23 @@ function renderEsperas() {
 
   tabsContainer.innerHTML = state.esperaVentas.map(v => {
     const isActive = v.idVenta === state.activeEsperaTab;
+    const esEnvio = v.estado === 'ENVIANDO_PEDIDO';
     const cliente = v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador';
+    const etiqueta = esEnvio
+      ? '<i class="fas fa-print me-1"></i>Enviado' + (v.clienteNombre ? ' (' + cliente + ')' : '')
+      : cliente;
+    const titulo = esEnvio
+      ? 'Cobrar venta programada de ' + cliente
+      : 'Recuperar la cuenta de ' + cliente;
     return `<li class="nav-item pos-espera-item" role="presentation">
       <button class="nav-link ${isActive ? 'active' : ''}" id="espera-tab-${v.idVenta}" data-espera-id="${v.idVenta}"
         type="button" role="tab" aria-selected="${isActive}"
         style="font-size:0.72rem;padding:4px 8px;white-space:nowrap;cursor:pointer"
-        title="Recuperar la cuenta de ${cliente}">
-        ${cliente} <small class="text-muted" style="font-weight:600">$${v.total.toFixed(2)}</small>
+        title="${titulo}">
+        ${etiqueta} <small class="text-muted" style="font-weight:600">$${v.total.toFixed(2)}</small>
       </button>
-      <button type="button" class="pos-espera-close" data-espera-del="${v.idVenta}"
-        title="Eliminar venta en espera" aria-label="Eliminar venta en espera">&#10005;</button>
+      ${esEnvio ? '' : `<button type="button" class="pos-espera-close" data-espera-del="${v.idVenta}"
+        title="Eliminar venta en espera" aria-label="Eliminar venta en espera">&#10005;</button>`}
     </li>`;
   }).join('');
 
@@ -1620,6 +1720,11 @@ function renderEsperas() {
       e.preventDefault();
       const id = parseInt(btn.dataset.esperaId);
       state.activeEsperaTab = id;
+      const venta = state.esperaVentas.find(v => v.idVenta === id);
+      if (venta && venta.estado === 'ENVIANDO_PEDIDO') {
+        await abrirCobroEnviado(venta);
+        return;
+      }
       await reanudarEspera(id);
     });
   });
@@ -1741,18 +1846,21 @@ async function abrirCancelarVentaModal() {
     body.innerHTML = '';
     document.getElementById('posCancelarEmpty').classList.remove('d-none');
   } else {
-    body.innerHTML = state.cancelarVentas.map(v =>
-      `<tr class="pos-cancelar-row ${v.estado === 'CANCELADA' ? 'text-muted' : ''}" data-id="${v.idVenta}" style="cursor:pointer">
+    body.innerHTML = state.cancelarVentas.map(v => {
+      const noCancelable = v.estado === 'CANCELADA' || v.estado === 'SOLICITADA_CANCELACION';
+      const badge = { 'CANCELADA': 'badge-inactive', 'ENVIANDO_PEDIDO': 'badge-info', 'SOLICITADA_CANCELACION': 'badge-warning' }[v.estado] || 'badge-active';
+      return `<tr class="pos-cancelar-row ${v.estado === 'CANCELADA' ? 'text-muted' : ''}" data-id="${v.idVenta}" style="cursor:pointer">
         <td>
-          <input type="radio" name="cancelarSel" value="${v.idVenta}" ${v.estado === 'CANCELADA' ? 'disabled' : ''}
+          <input type="radio" name="cancelarSel" value="${v.idVenta}" ${noCancelable ? 'disabled' : ''}
             class="form-check-input pos-cancelar-radio">
         </td>
         <td>${v.idVenta}</td>
         <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
         <td>$${v.total.toFixed(2)}</td>
         <td>${new Date(v.fecha).toLocaleString()}</td>
-      </tr>`
-    ).join('');
+        <td><span class="badge-status ${badge}">${v.estado}</span></td>
+      </tr>`;
+    }).join('');
 
     body.querySelectorAll('.pos-cancelar-radio').forEach(r => {
       r.addEventListener('change', () => {

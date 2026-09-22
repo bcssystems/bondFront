@@ -16,8 +16,16 @@ const TICKET_CSS = `
       position: relative;
       box-sizing: border-box;
       padding: 0.25in;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
     }
     .print-copy:last-child { page-break-after: avoid; }
+    .page-totals {
+      margin-top: auto;
+      padding-bottom: 0.1in;
+    }
     .copy-label {
       text-align: center;
       font-size: 7.5pt;
@@ -369,11 +377,13 @@ export function printRemisionVenta(venta, opts) {
   const pagoRows = esCredito
     ? `<tr><td>Cr\u00e9dito &mdash; Pagar\u00e9 #${Utils.esc(venta.folioPagare || '—')}</td><td class="right">$${totalConInteres.toFixed(2)}</td></tr>
        <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">$${((venta.total || 0) * porcentajeInteres / 100).toFixed(2)}</td></tr>`
-    : (venta.pagos || []).map(p => `
+    : (venta.pagos || []).length > 0
+      ? (venta.pagos || []).map(p => `
     <tr>
       <td>${Utils.esc(p.tipoPagoNombre || '')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
       <td class="right">$${(p.monto || 0).toFixed(2)}</td>
-    </tr>`).join('');
+    </tr>`).join('')
+      : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
 
   const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'BONDS' : '');
   const lugarPagare = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
@@ -460,11 +470,15 @@ export function printRemisionVenta(venta, opts) {
 
     const pieHtml = esCredito
       ? `<div class="bottom-section pagare-footer">${pagareHtml}</div>`
-      : `<div class="bottom-section"><div class="footer">
+      : `<div class="footer">
       <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
       Este documento es un comprobante interno de venta<br>
       ${fechaStr} ${horaStr}
-    </div></div>`;
+    </div>`;
+
+    const cuerpoTotales = esCredito
+      ? totalesHtml + '\n  ' + pieHtml
+      : '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + '</div>';
 
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
@@ -494,8 +508,8 @@ export function printRemisionVenta(venta, opts) {
       ${detalleRows}
     </tbody>
   </table>
-  ${totalesHtml}
-  ${pieHtml}`;
+  ${cuerpoTotales}
+  `;
   }
 
   const win = abrirVentana('Remisi\u00f3n - Venta #' + venta.idVenta, 600, 800);

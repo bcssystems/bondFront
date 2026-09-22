@@ -5,11 +5,8 @@
       <small class="text-muted">Fondo fijo para gastos menores, ingresos y movimientos</small>
     </div>
     <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-warning btn-sm ripple" id="btnIngresarChica">
+      <button type="button" class="btn btn-outline-success btn-sm ripple" id="btnIngresarChica">
         <i class="fas fa-plus me-1"></i> Ingreso
-      </button>
-      <button type="button" class="btn btn-outline-danger btn-sm ripple" id="btnEgresarChica">
-        <i class="fas fa-minus me-1"></i> Egreso
       </button>
       <button type="button" class="btn btn-outline-secondary btn-sm ripple" id="btnGastoChica">
         <i class="fas fa-money-bill-wave me-1"></i> Solicitar Gasto
@@ -18,26 +15,20 @@
   </div>
 
   <div class="row g-3 mb-3" id="cajaChicaCards">
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="panel-card p-3 text-center">
         <small class="text-muted">Caja</small>
         <h5 class="mb-1" id="chicaNombre">--</h5>
         <span class="badge-status badge-inactive" id="chicaEstado">--</span>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="panel-card p-3 text-center">
         <small class="text-muted">Saldo Actual</small>
         <h4 class="mb-0" id="chicaSaldo">$0.00</h4>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="panel-card p-3 text-center">
-        <small class="text-muted">Fondo de Referencia</small>
-        <h4 class="mb-0" id="chicaFondo">$0.00</h4>
-      </div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="panel-card p-3 text-center">
         <small class="text-muted">&#218;lt. Apertura</small>
         <h6 class="mb-0" id="chicaApertura">--</h6>
@@ -51,19 +42,6 @@
     </div>
   </div>
 
-  <ul class="nav nav-tabs module-tabs mb-3" id="chicaTabs" role="tablist">
-    <li class="nav-item">
-      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-movimientos" type="button">
-        <i class="fas fa-exchange-alt me-1"></i> Movimientos
-      </button>
-    </li>
-    <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-gastos" type="button">
-        <i class="fas fa-money-bill-wave me-1"></i> Gastos
-      </button>
-    </li>
-  </ul>
-
   <div class="tab-content">
     <div class="tab-pane fade show active" id="tab-movimientos">
       <div class="filter-bar">
@@ -73,8 +51,8 @@
             <label class="btn btn-outline-secondary btn-sm" for="filtroChicaMovTodos">Todos</label>
             <input type="radio" class="btn-check" name="filtroChicaMov" id="filtroChicaMovIngresos" value="INGRESO">
             <label class="btn btn-outline-success btn-sm" for="filtroChicaMovIngresos"><i class="fas fa-plus me-1"></i> Ingresos</label>
-            <input type="radio" class="btn-check" name="filtroChicaMov" id="filtroChicaMovEgresos" value="EGRESO">
-            <label class="btn btn-outline-danger btn-sm" for="filtroChicaMovEgresos"><i class="fas fa-minus me-1"></i> Egresos</label>
+            <input type="radio" class="btn-check" name="filtroChicaMov" id="filtroChicaMovGastos" value="GASTO">
+            <label class="btn btn-outline-danger btn-sm" for="filtroChicaMovGastos"><i class="fas fa-money-bill-wave me-1"></i> Gastos</label>
           </div>
           <div class="ms-auto d-flex gap-2">
             <button type="button" class="btn btn-sm btn-outline-danger ripple" id="btnExportMovPDF"><i class="fas fa-file-pdf me-1"></i> PDF</button>
@@ -89,52 +67,14 @@
               <tr>
                 <th>Fecha</th>
                 <th>Tipo</th>
-                <th>Monto</th>
-                <th>Motivo</th>
-              </tr>
-            </thead>
-            <tbody id="tableChicaMovBody">
-              <tr><td colspan="4"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Cargando...</p></div></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-pane fade" id="tab-gastos">
-      <div class="filter-bar">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%">
-          <div class="btn-group" role="group">
-            <input type="radio" class="btn-check" name="filtroChicaGasto" id="filtroChicaGastoTodos" value="todos" checked>
-            <label class="btn btn-outline-secondary btn-sm" for="filtroChicaGastoTodos">Todos</label>
-            <input type="radio" class="btn-check" name="filtroChicaGasto" id="filtroChicaGastoPendientes" value="PENDIENTE">
-            <label class="btn btn-outline-warning btn-sm" for="filtroChicaGastoPendientes">Pendientes</label>
-            <input type="radio" class="btn-check" name="filtroChicaGasto" id="filtroChicaGastoAutorizados" value="AUTORIZADO">
-            <label class="btn btn-outline-success btn-sm" for="filtroChicaGastoAutorizados">Autorizados</label>
-            <input type="radio" class="btn-check" name="filtroChicaGasto" id="filtroChicaGastoRechazados" value="RECHAZADO">
-            <label class="btn btn-outline-danger btn-sm" for="filtroChicaGastoRechazados">Rechazados</label>
-          </div>
-          <div class="ms-auto d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-danger ripple" id="btnExportGastoPDF"><i class="fas fa-file-pdf me-1"></i> PDF</button>
-            <button type="button" class="btn btn-sm btn-outline-success ripple" id="btnExportGastoExcel"><i class="fas fa-file-excel me-1"></i> Excel</button>
-          </div>
-        </div>
-      </div>
-      <div class="panel-card overflow-hidden">
-        <div class="table-responsive">
-          <table class="table table-custom mb-0">
-            <thead>
-              <tr>
-                <th>Descripci&oacute;n</th>
-                <th>Monto</th>
-                <th>Solicit&oacute;</th>
+                <th>Concepto</th>
                 <th>Estado</th>
-                <th>Fecha</th>
+                <th>Monto</th>
                 <th style="width:100px"></th>
               </tr>
             </thead>
-            <tbody id="tableChicaGastoBody">
-              <tr><td colspan="6"><div class="empty-state"><i class="fas fa-money-bill-wave"></i><p>Cargando...</p></div></td></tr>
+            <tbody id="tableChicaMovBody">
+              <tr><td colspan="6"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Cargando...</p></div></td></tr>
             </tbody>
           </table>
         </div>
