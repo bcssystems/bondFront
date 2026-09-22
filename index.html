@@ -353,6 +353,8 @@
         s.src = s.src.split('?')[0] + '?v=' + PAYLOAD_VERSION;
       }
     });
+    var sidebarVer = document.getElementById('sidebar-version');
+    if (sidebarVer && typeof PAYLOAD_VERSION !== 'undefined') sidebarVer.textContent = 'v' + PAYLOAD_VERSION;
   </script>
   <script src="js/api.js"></script>
   <script src="js/utils.js"></script>
