@@ -4,13 +4,9 @@
       <h4><i class="fas fa-coins me-2" style="color:var(--primary)"></i>Caja Chica</h4>
       <small class="text-muted">Fondo fijo para gastos menores, ingresos y movimientos</small>
     </div>
-    <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-success btn-sm ripple" id="btnIngresarChica">
-        <i class="fas fa-plus me-1"></i> Ingreso
-      </button>
-      <button type="button" class="btn btn-outline-secondary btn-sm ripple" id="btnGastoChica">
-        <i class="fas fa-money-bill-wave me-1"></i> Solicitar Gasto
-      </button>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-danger ripple" id="btnExportMovPDF"><i class="fas fa-file-pdf me-1"></i> PDF</button>
+      <button type="button" class="btn btn-sm btn-outline-success ripple" id="btnExportMovExcel"><i class="fas fa-file-excel me-1"></i> Excel</button>
     </div>
   </div>
 
@@ -54,9 +50,13 @@
             <input type="radio" class="btn-check" name="filtroChicaMov" id="filtroChicaMovGastos" value="GASTO">
             <label class="btn btn-outline-danger btn-sm" for="filtroChicaMovGastos"><i class="fas fa-money-bill-wave me-1"></i> Gastos</label>
           </div>
-          <div class="ms-auto d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-danger ripple" id="btnExportMovPDF"><i class="fas fa-file-pdf me-1"></i> PDF</button>
-            <button type="button" class="btn btn-sm btn-outline-success ripple" id="btnExportMovExcel"><i class="fas fa-file-excel me-1"></i> Excel</button>
+          <div class="btn-group ms-auto" role="group">
+            <button type="button" class="btn btn-outline-success btn-sm ripple" id="btnIngresarChica">
+              <i class="fas fa-plus me-1"></i> Ingreso
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm ripple" id="btnGastoChica">
+              <i class="fas fa-money-bill-wave me-1"></i> Solicitar Gasto
+            </button>
           </div>
         </div>
       </div>

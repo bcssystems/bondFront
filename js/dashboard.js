@@ -80,19 +80,20 @@ const Dashboard = {
     const links = document.querySelectorAll('.sidebar-item[data-permiso]');
     links.forEach(link => {
       const permiso = link.dataset.permiso;
+      const li = link.closest('li');
+      if (!li) return;
       if (permiso && !Utils.hasPermiso(permiso)) {
-        const li = link.closest('li');
-        if (li) li.style.display = 'none';
+        li.style.display = 'none';
+      } else {
+        li.style.display = '';
       }
     });
 
     document.querySelectorAll('ul.sidebar-submenu').forEach(sub => {
       const hasVisible = Array.from(sub.children).some(li => li.style.display !== 'none');
-      if (!hasVisible) {
-        const toggle = document.querySelector('[data-target="' + sub.id + '"]');
-        const parentLi = toggle ? toggle.closest('li') : null;
-        if (parentLi) parentLi.style.display = 'none';
-      }
+      const toggle = document.querySelector('[data-target="' + sub.id + '"]');
+      const parentLi = toggle ? toggle.closest('li') : null;
+      if (parentLi) parentLi.style.display = hasVisible ? '' : 'none';
     });
   },
 

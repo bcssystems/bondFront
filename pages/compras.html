@@ -1,17 +1,17 @@
 <div class="page-content">
   <div class="page-header">
     <div>
-      <h4><i class="fas fa-truck-loading me-2" style="color:var(--primary)"></i>Recepciones</h4>
+      <h4><i class="fas fa-truck-loading me-2" style="color:var(--primary)"></i>Compras</h4>
       <small class="text-muted">Entrada directa de mercanc&iacute;a a inventario</small>
     </div>
-    <button class="btn btn-primary btn-sm" id="btnNuevaRecepcion"><i class="fas fa-plus me-1"></i>Nueva recepci&oacute;n</button>
+    <button class="btn btn-primary btn-sm" id="btnNuevaCompra"><i class="fas fa-plus me-1"></i>Nueva compra</button>
   </div>
 
-  <div class="row g-3 mb-3" id="statsRecepciones">
+  <div class="row g-3 mb-3" id="statsCompras">
     <div class="col-md-3 col-sm-6">
       <div class="stat-card">
         <div class="stat-icon" style="background:rgba(37,99,235,.12);color:#2563EB"><i class="fas fa-truck-loading"></i></div>
-        <div class="stat-info"><div class="stat-number" id="statRecepciones">0</div><div class="stat-label">Recepciones</div></div>
+        <div class="stat-info"><div class="stat-number" id="statCompras">0</div><div class="stat-label">Compras</div></div>
       </div>
     </div>
     <div class="col-md-3 col-sm-6">
@@ -35,8 +35,8 @@
   </div>
 
   <div class="filter-bar">
-    <input type="text" class="form-control" id="searchRecepciones" placeholder="Buscar por folio o proveedor..." style="min-width:240px">
-    <select class="form-select" id="filtroSucursalRecepcion" style="min-width:200px">
+    <input type="text" class="form-control" id="searchCompras" placeholder="Buscar por folio o proveedor..." style="min-width:240px">
+    <select class="form-select" id="filtroSucursalCompra" style="min-width:200px">
       <option value="">Todas las sucursales</option>
     </select>
   </div>
@@ -56,7 +56,7 @@
             <th style="width:120px"></th>
           </tr>
         </thead>
-        <tbody id="tableRecepcionesBody">
+        <tbody id="tableComprasBody">
           <tr><td colspan="8"><div class="empty-state"><i class="fas fa-truck-loading"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
@@ -64,27 +64,27 @@
   </div>
 </div>
 
-<!-- Modal nueva recepcion -->
-<div class="modal fade" id="modalRecepcion" tabindex="-1" aria-hidden="true">
+<!-- Modal nueva compra -->
+<div class="modal fade" id="modalCompra" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title fw-bold"><i class="fas fa-truck-loading me-2" style="color:var(--primary)"></i>Nueva recepci&oacute;n</h5>
+        <h5 class="modal-title fw-bold"><i class="fas fa-truck-loading me-2" style="color:var(--primary)"></i>Nueva compra</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Sucursal *</label>
-            <select class="form-select" id="recSucursal"></select>
+            <select class="form-select" id="cmpSucursal"></select>
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Proveedor</label>
-            <select class="form-select" id="recProveedor"><option value="">Sin proveedor</option></select>
+            <select class="form-select" id="cmpProveedor"><option value="">Sin proveedor</option></select>
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Nota</label>
-            <input type="text" class="form-control" id="recNota" placeholder="Nota opcional">
+            <input type="text" class="form-control" id="cmpNota" placeholder="Nota opcional">
           </div>
         </div>
 
@@ -105,18 +105,18 @@
                 <th style="width:50px"></th>
               </tr>
             </thead>
-            <tbody id="tableDetallesRecepcion"></tbody>
+            <tbody id="tableDetallesCompra"></tbody>
           </table>
         </div>
 
         <div class="d-flex justify-content-end gap-4 mt-3 pe-2">
-          <div><small class="text-muted">Total metros</small><div class="fw-bold fs-5" id="recTotalMetros">0</div></div>
-          <div><small class="text-muted">Total rollos</small><div class="fw-bold fs-5" id="recTotalRollos">0</div></div>
+          <div><small class="text-muted">Total metros</small><div class="fw-bold fs-5" id="cmpTotalMetros">0</div></div>
+          <div><small class="text-muted">Total rollos</small><div class="fw-bold fs-5" id="cmpTotalRollos">0</div></div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btnGuardarRecepcion"><i class="fas fa-save me-1"></i>Guardar recepci&oacute;n</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarCompra"><i class="fas fa-save me-1"></i>Guardar compra</button>
       </div>
     </div>
   </div>

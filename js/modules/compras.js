@@ -1,29 +1,29 @@
-let state = { recepciones: [], productos: [], sucursales: [], proveedores: [], detalles: [] };
+let state = { compras: [], productos: [], sucursales: [], proveedores: [], detalles: [] };
 let productoModal = null;
 
 export function init() {
   bindEvents();
   cargarStats();
   cargarCatalogo();
-  cargarRecepciones();
+  cargarCompras();
 }
 
 function bindEvents() {
-  document.getElementById('btnNuevaRecepcion')?.addEventListener('click', abrirModal);
-  document.getElementById('btnGuardarRecepcion')?.addEventListener('click', guardar);
+  document.getElementById('btnNuevaCompra')?.addEventListener('click', abrirModal);
+  document.getElementById('btnGuardarCompra')?.addEventListener('click', guardar);
   document.getElementById('btnAgregarDetalle')?.addEventListener('click', () => agregarDetalle());
-  document.getElementById('searchRecepciones')?.addEventListener('input', Utils.debounce(cargarRecepciones, 300));
-  document.getElementById('filtroSucursalRecepcion')?.addEventListener('change', cargarRecepciones);
-  document.getElementById('tableRecepcionesBody')?.addEventListener('click', handleTableClick);
-  document.getElementById('modalRecepcion')?.addEventListener('shown.bs.modal', () => {
-    document.getElementById('recSucursal')?.focus();
+  document.getElementById('searchCompras')?.addEventListener('input', Utils.debounce(cargarCompras, 300));
+  document.getElementById('filtroSucursalCompra')?.addEventListener('change', cargarCompras);
+  document.getElementById('tableComprasBody')?.addEventListener('click', handleTableClick);
+  document.getElementById('modalCompra')?.addEventListener('shown.bs.modal', () => {
+    document.getElementById('cmpSucursal')?.focus();
   });
 }
 
 async function cargarStats() {
   try {
     const stats = await API.get('/recepciones/stats');
-    document.getElementById('statRecepciones').textContent = stats.totalRecepciones || 0;
+    document.getElementById('statCompras').textContent = stats.totalRecepciones || 0;
     document.getElementById('statMetros').textContent = (Math.round((stats.totalMetros || 0) * 100) / 100) + ' m';
     document.getElementById('statRollos').textContent = stats.totalRollos || 0;
     document.getElementById('statMetros30').textContent = (Math.round((stats.metros30Dias || 0) * 100) / 100) + ' m';
@@ -34,11 +34,11 @@ async function cargarCatalogo() {
   try {
     state.sucursales = await API.get('/sucursales');
     state.sucursales = state.sucursales || [];
-    const selSuc = document.getElementById('recSucursal');
+    const selSuc = document.getElementById('cmpSucursal');
     if (selSuc) selSuc.innerHTML = state.sucursales.map(s => `<option value="${s.idSucursal}">${Utils.esc(s.nombre)}</option>`).join('');
     if (state.sucursales.length === 1 && selSuc) selSuc.value = state.sucursales[0].idSucursal;
 
-    const selFiltro = document.getElementById('filtroSucursalRecepcion');
+    const selFiltro = document.getElementById('filtroSucursalCompra');
     if (selFiltro) selFiltro.innerHTML = '<option value="">Todas las sucursales</option>' +
       state.sucursales.map(s => `<option value="${s.idSucursal}">${Utils.esc(s.nombre)}</option>`).join('');
   } catch (err) {
@@ -49,7 +49,7 @@ async function cargarCatalogo() {
   try {
     const res = await API.get('/proveedores?size=200');
     state.proveedores = res.content || res || [];
-    const selProv = document.getElementById('recProveedor');
+    const selProv = document.getElementById('cmpProveedor');
     if (selProv) selProv.innerHTML = '<option value="">Sin proveedor</option>' +
       state.proveedores.map(p => `<option value="${p.idProveedor}">${Utils.esc(p.nombre)}</option>`).join('');
   } catch (err) {
@@ -70,28 +70,28 @@ async function cargarCatalogo() {
   }
 }
 
-async function cargarRecepciones() {
-  const search = document.getElementById('searchRecepciones')?.value || '';
-  const idSucursal = document.getElementById('filtroSucursalRecepcion')?.value || '';
+async function cargarCompras() {
+  const search = document.getElementById('searchCompras')?.value || '';
+  const idSucursal = document.getElementById('filtroSucursalCompra')?.value || '';
   try {
     const q = new URLSearchParams({ search });
     if (idSucursal) q.set('idSucursal', idSucursal);
-    state.recepciones = await API.get('/recepciones?' + q.toString());
+    state.compras = await API.get('/recepciones?' + q.toString());
     renderTable();
   } catch (err) {
-    state.recepciones = [];
+    state.compras = [];
     renderTable();
   }
 }
 
 function renderTable() {
-  const tbody = document.getElementById('tableRecepcionesBody');
+  const tbody = document.getElementById('tableComprasBody');
   if (!tbody) return;
-  if (!state.recepciones || state.recepciones.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-truck-loading"></i><p>No hay recepciones</p></div></td></tr>';
+  if (!state.compras || state.compras.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-truck-loading"></i><p>No hay compras</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = state.recepciones.map(r => `<tr>
+  tbody.innerHTML = state.compras.map(r => `<tr>
     <td><span class="badge-status badge-active">${Utils.esc(r.folio)}</span></td>
     <td>${Utils.esc(r.proveedorNombre) || '-'}</td>
     <td>${Utils.esc(r.sucursalNombre)}</td>
@@ -111,9 +111,9 @@ function handleTableClick(e) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
     Utils.abrirMenuKebab(kebab, [
-      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verRecepcion(id) },
+      { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verCompra(id) },
       { icon: 'fa-print', text: 'Imprimir factura', color: 'var(--success)', onClick: () => imprimirFactura(id) },
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => eliminarRecepcion(id) },
+      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => eliminarCompra(id) },
     ]);
     return;
   }
@@ -122,12 +122,12 @@ function handleTableClick(e) {
   e.preventDefault();
   const id = parseInt(btn.dataset.id);
   const action = btn.dataset.action;
-  if (action === 'ver') verRecepcion(id);
+  if (action === 'ver') verCompra(id);
   else if (action === 'imprimir') imprimirFactura(id);
-  else if (action === 'eliminar') eliminarRecepcion(id);
+  else if (action === 'eliminar') eliminarCompra(id);
 }
 
-async function verRecepcion(id) {
+async function verCompra(id) {
   try {
     const r = await API.get('/recepciones/' + id);
     const filas = (r.detalles || []).map(d => `<tr>
@@ -144,7 +144,7 @@ async function verRecepcion(id) {
         <tbody>${filas}</tbody>
       </table></div>
       <div class="d-flex justify-content-end gap-4"><div class="fw-bold">Total metros: ${Math.round(r.totalMetros * 100) / 100} m</div><div class="fw-bold">Total rollos: ${r.totalRollos}</div></div>`;
-    Utils.showDialog('Recepci&oacute;n ' + Utils.esc(r.folio), body);
+    Utils.showDialog('Compra ' + Utils.esc(r.folio), body);
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -166,7 +166,7 @@ function imprimirTicket(r) {
   const total = (r.detalles || []).reduce((s, d) => s + d.subtotal, 0);
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-    <title>Recepci&oacute;n ${Utils.esc(r.folio)}</title>
+    <title>Compra ${Utils.esc(r.folio)}</title>
     <style>
       body{font-family:Inter,Segoe UI,sans-serif;font-size:13px;color:#0f172a;margin:0;padding:24px}
       h1{margin:0;font-size:22px;color:#1e3a5f}
@@ -180,7 +180,7 @@ function imprimirTicket(r) {
       @media print{body{padding:0}}
     </style></head><body>
     <div class="header">
-      <h1>BONDS <span style="font-size:13px;font-weight:400;color:#64748b">— Nota de Recepci&oacute;n / Factura</span></h1>
+      <h1>BONDS <span style="font-size:13px;font-weight:400;color:#64748b">— Nota de Compra / Factura</span></h1>
       <div class="muted">PRISCILA ARONG KIM LOPEZ</div>
     </div>
     <div class="row">
@@ -208,23 +208,23 @@ function imprimirTicket(r) {
   win.document.close();
 }
 
-async function eliminarRecepcion(id) {
-  const confirmed = await Utils.confirm('Esta acci&oacute;n descontar&aacute; el stock de la recepci&oacute;n. \u00bfContinuar?', 'Eliminar recepci&oacute;n');
+async function eliminarCompra(id) {
+  const confirmed = await Utils.confirm('Esta acci&oacute;n descontar&aacute; el stock de la compra. \u00bfContinuar?', 'Eliminar compra');
   if (!confirmed) return;
   try {
     await API.del('/recepciones/' + id);
-    Utils.showToast('Recepci&oacute;n eliminada', 'success');
+    Utils.showToast('Compra eliminada', 'success');
     cargarStats();
-    cargarRecepciones();
+    cargarCompras();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-const modal = document.getElementById('modalRecepcion');
+const modal = document.getElementById('modalCompra');
 
 function abrirModal() {
   state.detalles = [];
-  document.getElementById('tableDetallesRecepcion').innerHTML = '';
-  document.getElementById('recNota').value = '';
+  document.getElementById('tableDetallesCompra').innerHTML = '';
+  document.getElementById('cmpNota').value = '';
   actualizarTotales();
   if (!productoModal) productoModal = new bootstrap.Modal(modal, { backdrop: 'static' });
   productoModal.show();
@@ -247,7 +247,7 @@ function agregarDetalle(producto, metros, precio) {
     <td class="det-rollos text-center fw-semibold">0</td>
     <td class="det-subtotal text-end fw-semibold">$0.00</td>
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>`;
-  document.getElementById('tableDetallesRecepcion').appendChild(fila);
+  document.getElementById('tableDetallesCompra').appendChild(fila);
   const sel = fila.querySelector('.det-producto');
   if (producto && state.productos.find(p => p.idProducto === producto)) sel.value = producto;
   ['input', 'change'].forEach(ev => {
@@ -275,22 +275,22 @@ function recalcularFila(fila) {
 }
 
 function actualizarTotales() {
-  const filas = document.querySelectorAll('#tableDetallesRecepcion tr');
+  const filas = document.querySelectorAll('#tableDetallesCompra tr');
   let metros = 0, rollos = 0;
   filas.forEach(f => {
     metros += parseFloat(f.querySelector('.det-metros')?.value) || 0;
     rollos += parseInt(f.querySelector('.det-rollos')?.textContent) || 0;
   });
-  document.getElementById('recTotalMetros').textContent = Math.round(metros * 100) / 100 + ' m';
-  document.getElementById('recTotalRollos').textContent = rollos;
+  document.getElementById('cmpTotalMetros').textContent = Math.round(metros * 100) / 100 + ' m';
+  document.getElementById('cmpTotalRollos').textContent = rollos;
 }
 
 async function guardar() {
-  const idSucursal = document.getElementById('recSucursal').value;
-  const idProveedor = document.getElementById('recProveedor').value;
-  const nota = document.getElementById('recNota').value;
+  const idSucursal = document.getElementById('cmpSucursal').value;
+  const idProveedor = document.getElementById('cmpProveedor').value;
+  const nota = document.getElementById('cmpNota').value;
   const detalles = [];
-  const filas = document.querySelectorAll('#tableDetallesRecepcion tr');
+  const filas = document.querySelectorAll('#tableDetallesCompra tr');
 
   if (!idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
   if (filas.length === 0) { Utils.showToast('Agrega al menos un producto', 'warning'); return; }
@@ -306,9 +306,9 @@ async function guardar() {
 
   try {
     await API.post('/recepciones', { idSucursal: parseInt(idSucursal), idProveedor: idProveedor ? parseInt(idProveedor) : null, nota, detalles });
-    Utils.showToast('Recepci&oacute;n registrada', 'success');
+    Utils.showToast('Compra registrada', 'success');
     productoModal.hide();
     cargarStats();
-    cargarRecepciones();
+    cargarCompras();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }

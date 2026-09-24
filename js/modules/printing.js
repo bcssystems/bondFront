@@ -644,7 +644,7 @@ export function printCotizacion(cotizacion, opts) {
   }
 }
 
-export function printEstadoCuenta(payload) {
+function buildEstadoCuentaHtml(payload) {
   const configs = payload.configs || {};
   const cliente = payload.cliente || {};
   const totalPendiente = payload.totalPendiente || 0;
@@ -687,7 +687,7 @@ export function printEstadoCuenta(payload) {
 
   const nombreCliente = [cliente.nombre || '', cliente.apellidoPaterno || '', cliente.apellidoMaterno || ''].filter(Boolean).join(' ');
 
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta</title>
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta</title>
   <style>${STATE_CUENTA_CSS}</style></head><body>
     <div class="header">
       <h1>BONDS</h1>
@@ -714,11 +714,77 @@ export function printEstadoCuenta(payload) {
     <div class="notas-box">${notasHtml}</div>
     <div class="firma"><div class="firma-linea"></div>Firma del cliente</div>
   </body></html>`;
+}
 
+export function printEstadoCuenta(payload) {
+  const html = buildEstadoCuentaHtml(payload);
   const win = abrirVentana('Estado de Cuenta', 700, 680);
   if (!win) return;
   win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); }, 300);
+}
+
+export function descargarEstadoCuentaPdf(payload) {
+  if (typeof html2canvas !== 'function' || typeof window.jspdf !== 'object' || !window.jspdf.jsPDF) {
+    Utils.showToast('Librer\u00edas de PDF no disponibles', 'error');
+    return;
+  }
+  const html = buildEstadoCuentaHtml(payload);
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '1000px';
+  iframe.style.height = '1600px';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  const idoc = iframe.contentWindow.document;
+  idoc.open();
+  idoc.write(html);
+  idoc.close();
+
+  let intentos = 0;
+  const intentar = function () {
+    const body = iframe.contentWindow.document.body;
+    if (!body || intentos++ > 50) {
+      iframe.remove();
+      Utils.showToast('No se pudo generar el PDF', 'error');
+      return;
+    }
+    html2canvas(body, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+      .then(function (canvas) {
+        const jsPDF = window.jspdf.jsPDF;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const imgW = pageW;
+        const imgH = canvas.height * imgW / canvas.width;
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        if (imgH <= pageH) {
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, imgW, imgH);
+        } else {
+          let heightLeft = imgH;
+          let position = 0;
+          pdf.addImage(dataUrl, 'JPEG', 0, position, imgW, imgH);
+          heightLeft -= pageH;
+          while (heightLeft > 0) {
+            position -= pageH;
+            pdf.addPage();
+            pdf.addImage(dataUrl, 'JPEG', 0, position, imgW, imgH);
+            heightLeft -= pageH;
+          }
+        }
+        const nombre = [payload.cliente && payload.cliente.nombre, payload.cliente && payload.cliente.apellidoPaterno].filter(Boolean).join(' ').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'cliente';
+        pdf.save('estado-de-cuenta_' + nombre + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
+        iframe.remove();
+      })
+      .catch(function () {
+        iframe.remove();
+        Utils.showToast('Error al generar el PDF', 'error');
+      });
+  };
+  setTimeout(intentar, 300);
 }

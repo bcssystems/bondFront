@@ -122,19 +122,19 @@
                 </a>
               </li>
               <li>
-                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/historial-ventas.html" data-module="historial-ventas" data-permiso="HISTORIAL_VENTAS_VER">
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/historial-ventas.html" data-module="historial-ventas" data-permiso="VENTAS_VER">
                   <i class="fas fa-history sidebar-item-icon"></i>
                   <span>Historial</span>
                 </a>
               </li>
               <li>
-                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/caja-chica.html" data-module="caja-chica" data-permiso="CAJA_CHICA_VER">
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/caja-chica.html" data-module="caja-chica" data-permiso="CAJAS_VER">
                   <i class="fas fa-coins sidebar-item-icon"></i>
                   <span>Caja Chica</span>
                 </a>
               </li>
               <li>
-                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cancelaciones.html" data-module="cancelaciones" data-permiso="CANCELACIONES_VER">
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cancelaciones.html" data-module="cancelaciones" data-permiso="VENTAS_VER">
                   <i class="fas fa-ban sidebar-item-icon"></i>
                   <span>Cancelaciones de venta</span>
                 </a>
@@ -173,9 +173,9 @@
                 </a>
               </li>
               <li>
-                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/recepciones.html" data-module="recepciones" data-permiso="RECEPCIONES_VER">
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/compras.html" data-module="compras" data-permiso="RECEPCIONES_VER">
                   <i class="fas fa-truck-loading sidebar-item-icon"></i>
-                  <span>Recepciones</span>
+                  <span>Compras</span>
                 </a>
               </li>
               <li>
@@ -343,6 +343,8 @@
   <!-- SCRIPTS -->
   <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="assets/fontawesome/js/all.min.js"></script>
+  <script src="assets/jspdf/umd/jspdf.min.js"></script>
+  <script src="assets/html2canvas/html2canvas.min.js"></script>
   <script src="js/version.js"></script>
   <script>
     document.querySelectorAll('link[rel="stylesheet"][href^="css/"]').forEach(function(l) {

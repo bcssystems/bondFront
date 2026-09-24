@@ -896,10 +896,9 @@ async function cargarFormasPagoCobro() {
     const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
     const clienteIdSel = parseInt(document.getElementById('posCliente').value) || null;
     const clienteCredito = state.clientes.find(c => c && c.idCliente === clienteIdSel) || null;
-    const clienteHabilitaCredito = !!(clienteCredito && clienteCredito.tieneCredito && clienteCredito.tieneIne);
-    const clienteFaltaIne = !!(clienteCredito && clienteCredito.tieneCredito && !clienteCredito.tieneIne);
+    const clienteHabilitaCredito = !!(clienteCredito && clienteCredito.tieneCredito);
     const clienteCreditoNombres = clienteCredito
-      ? Utils.esc((clienteCredito.nombre || '') + ' ' + (clienteCredito.apellidoPaterno || '')) + (clienteHabilitaCredito ? '' : (clienteFaltaIne ? ' <span class="text-danger">(falta INE)</span>' : ' <span class="text-danger">(sin cr\u00e9dito)</span>'))
+      ? Utils.esc((clienteCredito.nombre || '') + ' ' + (clienteCredito.apellidoPaterno || '')) + (clienteHabilitaCredito ? '' : ' <span class="text-danger">(sin cr\u00e9dito)</span>')
       : '<span class="text-muted">Selecciona un cliente en el POS</span>';
 
     if (!tipos || tipos.length === 0) {
@@ -940,7 +939,7 @@ async function cargarFormasPagoCobro() {
             </div>
           </div>
           <div class="col-6">
-            <small class="text-muted">Cliente: <strong>${clienteCreditoNombres}</strong><br>${clienteHabilitaCredito ? '' : (clienteFaltaIne ? '<span class="text-danger" style="font-size:0.7rem">El cliente debe tener INE registrada para usar cr\u00e9dito</span>' : '<span class="text-danger" style="font-size:0.7rem">Selecciona un cliente con cr\u00e9dito habilitado</span>')}</small>
+            <small class="text-muted">Cliente: <strong>${clienteCreditoNombres}</strong><br>${clienteHabilitaCredito ? '' : '<span class="text-danger" style="font-size:0.7rem">Selecciona un cliente con cr\u00e9dito habilitado</span>'}</small>
           </div>
         </div>
       </div>`;
@@ -1014,10 +1013,6 @@ async function confirmarCobro() {
     const cliente = state.clientes.find(c => c.idCliente === clienteId);
     if (!cliente || !cliente.tieneCredito) {
       Utils.showToast('El cliente seleccionado no tiene cr\u00e9dito habilitado', 'warning');
-      return;
-    }
-    if (!cliente.tieneIne) {
-      Utils.showToast('El cliente debe tener INE registrada para venta a cr\u00e9dito', 'warning');
       return;
     }
     if (cliente.limiteCredito != null) {

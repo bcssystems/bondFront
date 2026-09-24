@@ -119,7 +119,8 @@ function renderTable() {
 
 function renderPagination() {
   const container = document.getElementById('paginationKardex');
-  if (!container || state.totalPages <= 1) { container.innerHTML = ''; return; }
+  if (!container) return;
+  if (state.totalPages <= 1) { container.innerHTML = ''; return; }
 
   let html = '<nav><ul class="pagination pagination-sm justify-content-center mb-0">';
   html += `<li class="page-item ${state.currentPage === 0 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${state.currentPage - 1}"><i class="fas fa-chevron-left"></i></a></li>`;

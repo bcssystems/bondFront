@@ -1,4 +1,4 @@
-import { printRemisionVenta, printEstadoCuenta } from './printing.js';
+import { printRemisionVenta, printEstadoCuenta, descargarEstadoCuentaPdf } from './printing.js';
 
 let state = {
   clientes: [],
@@ -43,6 +43,7 @@ function bindEvents() {
   });
   document.getElementById('btnAbonarTodas')?.addEventListener('click', abonarTodasEnPOS);
   document.getElementById('btnImprimirEstadoCuenta')?.addEventListener('click', imprimirEstadoCuenta);
+  document.getElementById('btnDescargarEstadoCuentaPDF')?.addEventListener('click', descargarEstadoCuentaPDF);
   document.getElementById('abonoTipo')?.addEventListener('change', function() {
     const montoInput = document.getElementById('abonoMonto');
     if (this.value === 'LIQUIDACION') {
@@ -58,8 +59,10 @@ async function cargarTiposPago() {
     const optsHtml = state.tiposPago
       .map(t => `<option value="${t.idTipoPago}">${Utils.esc(t.nombre)}</option>`)
       .join('');
-    document.getElementById('abonoTipoPago').innerHTML = optsHtml;
-    document.getElementById('abonoGeneralTipoPago').innerHTML = optsHtml;
+    const tipoAbono = document.getElementById('abonoTipoPago');
+    const tipoAbonoGeneral = document.getElementById('abonoGeneralTipoPago');
+    if (tipoAbono) tipoAbono.innerHTML = optsHtml;
+    if (tipoAbonoGeneral) tipoAbonoGeneral.innerHTML = optsHtml;
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -405,10 +408,10 @@ function verNotaVenta(credito) {
   Utils.showDialog('Nota de la venta #' + (credito?.idVenta || credito?.folioVenta || ''), '<p class="mb-0">' + Utils.esc(nota) + '</p>');
 }
 
-async function imprimirEstadoCuenta() {
-  if (!state.selectedClienteId) return;
+async function armarPayloadEstadoCuenta() {
+  if (!state.selectedClienteId) return null;
   const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
-  if (!cliente) return;
+  if (!cliente) return null;
 
   let configs = {};
   let detallesEstado = {};
@@ -430,7 +433,7 @@ async function imprimirEstadoCuenta() {
     .map(c => ({ nota: (c.nota || '').trim(), fecha: c.fechaCreacion }))
     .filter(n => n.nota);
 
-  printEstadoCuenta({
+  return {
     cliente,
     configs,
     creditos: state.creditos || [],
@@ -438,7 +441,19 @@ async function imprimirEstadoCuenta() {
     notas,
     totalPendiente,
     tasaMora,
-  });
+  };
+}
+
+async function imprimirEstadoCuenta() {
+  const payload = await armarPayloadEstadoCuenta();
+  if (!payload) return;
+  printEstadoCuenta(payload);
+}
+
+async function descargarEstadoCuentaPDF() {
+  const payload = await armarPayloadEstadoCuenta();
+  if (!payload) return;
+  descargarEstadoCuentaPdf(payload);
 }
 
 async function confirmarAbono() {
