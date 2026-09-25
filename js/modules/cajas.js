@@ -73,15 +73,25 @@ function handleTableClick(e) {
     const abierta = estado === 'ABIERTA';
     const items = [
       { icon: 'fa-exchange-alt', text: 'Ver movimientos', color: 'var(--info)', onClick: () => verMovimientos(id) },
-      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-      ...(abierta ? [
-        { icon: 'fa-calculator', text: 'Corte', color: 'var(--warning)', onClick: () => previewCorte(id) },
-        { danger: true, icon: 'fa-lock', text: 'Cerrar caja', onClick: () => cerrarCaja(id) },
-      ] : [
-        { icon: 'fa-unlock', text: 'Abrir caja', color: 'var(--success)', onClick: () => abrirAperturaModal(id) },
-      ]),
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
     ];
+    if (Utils.hasPermiso('CAJAS_EDITAR')) {
+      items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+    }
+    if (abierta) {
+      if (Utils.hasPermiso('CAJAS_CIERRE')) {
+        items.push({ danger: true, icon: 'fa-lock', text: 'Cerrar caja', onClick: () => cerrarCaja(id) });
+      }
+      if (Utils.hasPermiso('CAJAS_CORTE')) {
+        items.push({ icon: 'fa-calculator', text: 'Corte', color: 'var(--warning)', onClick: () => previewCorte(id) });
+      }
+    } else {
+      if (Utils.hasPermiso('CAJAS_APERTURA')) {
+        items.push({ icon: 'fa-unlock', text: 'Abrir caja', color: 'var(--success)', onClick: () => abrirAperturaModal(id) });
+      }
+    }
+    if (Utils.hasPermiso('CAJAS_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+    }
     Utils.abrirMenuKebab(kebab, items);
     return;
   }

@@ -44,10 +44,14 @@ function handleTableClick(e) {
   if (kebab) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
-    const items = [
-      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
-    ];
+    const items = [];
+    if (Utils.hasPermiso('SUCURSALES_EDITAR')) {
+      items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+    }
+    if (Utils.hasPermiso('SUCURSALES_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+    }
+    if (items.length === 0) return;
     Utils.abrirMenuKebab(kebab, items);
     return;
   }

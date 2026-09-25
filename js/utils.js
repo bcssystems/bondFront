@@ -25,6 +25,22 @@ const Utils = {
     return this.getPermisos().includes(permiso);
   },
 
+  moduloDePermiso(clave) {
+    const acciones = ['VER', 'CREAR', 'EDITAR', 'ELIMINAR', 'CANCELAR', 'AUTORIZAR', 'RECHAZAR', 'ABONAR', 'CONVERTIR', 'APERTURA', 'CIERRE', 'MOVIMIENTO', 'CORTE'];
+    for (const accion of acciones) {
+      if (clave.endsWith('_' + accion)) {
+        return clave.slice(0, clave.length - accion.length - 1);
+      }
+    }
+    return null;
+  },
+
+  tienePermisoDeModulo(permisoClave) {
+    const mod = this.moduloDePermiso(permisoClave);
+    if (!mod) return this.hasPermiso(permisoClave);
+    return this.getPermisos().some(p => p === mod || p.startsWith(mod + '_'));
+  },
+
   showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;

@@ -9,6 +9,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('PERSONAS_CREAR')) {
+    const btn = document.getElementById('btnNuevaPersona');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevaPersona')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarPersona')?.addEventListener('click', guardarPersona);
   document.getElementById('tablePersonasBody')?.addEventListener('click', handleTableClick);
@@ -136,11 +140,15 @@ function abrirAccionesPersona(anchor, id) {
   const activa = !p || p.activa !== false;
   const items = [
     { icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetallePersona(id) },
-    { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-    activa
-      ? { danger: true, icon: 'fa-user-slash', text: 'Desactivar', onClick: () => confirmarEliminar(id) }
-      : { icon: 'fa-user-check', text: 'Reactivar', color: 'var(--success)', onClick: () => reactivarPersona(id) },
   ];
+  if (Utils.hasPermiso('PERSONAS_EDITAR')) {
+    items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+  }
+  if (Utils.hasPermiso('PERSONAS_ELIMINAR')) {
+    items.push(activa
+      ? { danger: true, icon: 'fa-user-slash', text: 'Desactivar', onClick: () => confirmarEliminar(id) }
+      : { icon: 'fa-user-check', text: 'Reactivar', color: 'var(--success)', onClick: () => reactivarPersona(id) });
+  }
   Utils.abrirMenuKebab(anchor, items);
 }
 

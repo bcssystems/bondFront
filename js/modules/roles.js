@@ -11,6 +11,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('ROLES_CREAR')) {
+    const btn = document.getElementById('btnNuevoRol');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevoRol')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarRol')?.addEventListener('click', guardarRol);
   document.getElementById('tableRolesBody')?.addEventListener('click', handleTableClick);
@@ -91,8 +95,10 @@ function abrirAccionesRol(anchor, id) {
   const activo = !rol || rol.activo !== false;
   const items = [
     { icon: 'fa-eye', text: 'Ver permisos', color: 'var(--info)', onClick: () => verRol(id) },
-    ...(!rol || rol.esSistema ? [] : [
+    ...(!rol || rol.esSistema || !Utils.hasPermiso('ROLES_EDITAR') ? [] : [
       { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
+    ]),
+    ...(!rol || rol.esSistema || !Utils.hasPermiso('ROLES_ELIMINAR') ? [] : [
       activo
         ? { danger: true, icon: 'fa-trash', text: 'Desactivar', onClick: () => confirmarEliminar(id) }
         : { icon: 'fa-undo', text: 'Reactivar', color: 'var(--success)', onClick: () => reactivarRol(id) },

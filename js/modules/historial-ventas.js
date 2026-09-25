@@ -57,10 +57,14 @@ function abrirAccionesVenta(anchor, id, estado) {
     { icon: 'fa-print', text: 'Imprimir remisi\u00f3n', color: 'var(--success)', onClick: () => imprimirRemision(id) },
   ];
   if (estado === 'COMPLETADA') {
-    items.push({ danger: true, icon: 'fa-ban', text: 'Solicitar cancelaci\u00f3n', onClick: () => solicitarCancelacion(id) });
+    if (Utils.hasPermiso('VENTAS_CREAR')) {
+      items.push({ danger: true, icon: 'fa-ban', text: 'Solicitar cancelaci\u00f3n', onClick: () => solicitarCancelacion(id) });
+    }
   } else if (estado === 'SOLICITADA_CANCELACION') {
-    items.push({ icon: 'fa-check', text: 'Autorizar cancelaci\u00f3n', color: 'var(--success)', onClick: () => autorizarCancelacion(id) });
-    items.push({ icon: 'fa-undo', text: 'Rechazar cancelaci\u00f3n', color: 'var(--warning)', onClick: () => rechazarCancelacion(id) });
+    if (Utils.hasPermiso('VENTAS_CANCELAR') || Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+      items.push({ icon: 'fa-check', text: 'Autorizar cancelaci\u00f3n', color: 'var(--success)', onClick: () => autorizarCancelacion(id) });
+      items.push({ icon: 'fa-undo', text: 'Rechazar cancelaci\u00f3n', color: 'var(--warning)', onClick: () => rechazarCancelacion(id) });
+    }
   }
   Utils.abrirMenuKebab(anchor, items);
 }

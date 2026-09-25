@@ -28,6 +28,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('PRODUCTOS_CREAR')) {
+    const btn = document.getElementById('btnNuevoProducto');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevoProducto')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarProducto')?.addEventListener('click', guardarProducto);
   document.getElementById('statsCostoTotalCard')?.addEventListener('click', mostrarCostoPorSucursal);
@@ -45,22 +49,17 @@ function bindEvents() {
     cargarProductos(0);
   });
   document.getElementById('productoTreeRoot')?.addEventListener('click', handleTableClick);
-  document.getElementById('multimediaInput')?.addEventListener('change', subirMultimedia);
-  document.getElementById('btnCamara')?.addEventListener('click', abrirCamara);
-  document.getElementById('btnTomarFoto')?.addEventListener('click', tomarFotoCamara);
-  document.getElementById('camaraModal')?.addEventListener('hidden.bs.modal', detenerCamara);
-  document.getElementById('btnRegistrarMovimiento')?.addEventListener('click', () => abrirModalMovimiento());
+  if (!Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
+    const btnMov = document.getElementById('btnRegistrarMovimiento');
+    if (btnMov) btnMov.style.display = 'none';
+    const btnMovFull = document.getElementById('btnRegistrarMovimientoFull');
+    if (btnMovFull) btnMovFull.style.display = 'none';
+  }
   document.getElementById('btnRegistrarMovimientoFull')?.addEventListener('click', () => {
     state.currentProductoId = state.movFullProductoId;
     abrirModalMovimiento();
   });
   document.getElementById('btnToggleInactivos')?.addEventListener('click', toggleInactivos);
-  document.getElementById('btnVerInventarioActual')?.addEventListener('click', () => {
-    if (state.currentProductoId) {
-      bootstrap.Modal.getInstance(document.getElementById('multimediaModal'))?.hide();
-      verInventario(state.currentProductoId);
-    }
-  });
   document.getElementById('btnMovFullFiltrar')?.addEventListener('click', () => {
     state.movFullFechaInicio = document.getElementById('movFullFechaInicio')?.value || '';
     state.movFullFechaFin = document.getElementById('movFullFechaFin')?.value || '';
@@ -201,13 +200,6 @@ function renderTable() {
 function renderProductoNode(p) {
   const id = p.idProducto;
 
-  const imgUrl = p.multimedia && p.multimedia.length > 0
-    ? API.mediaBaseUrl + (p.multimedia.find(m => m.esPrincipal)?.url || p.multimedia[0].url)
-    : null;
-  const imgHtml = imgUrl
-    ? `<img src="${Utils.esc(imgUrl)}" alt="">`
-    : '<div class="no-img"><i class="fas fa-image"></i></div>';
-
   let stockDisplay = p.stockActual;
   let stockClass = Utils.getStockClass(p.stockActual, p.stockMinimo);
   const unidad = (p.unidadMedida || 'UNIDAD').toLowerCase();
@@ -218,7 +210,7 @@ function renderProductoNode(p) {
 
   return `<li class="producto-node${p.activo ? '' : ' inactive'}">
     <div class="producto-row">
-      <div class="producto-img clickable" data-id="${id}" data-action="multimedia">${imgHtml}</div>
+      <div class="producto-spacer"></div>
       <span class="producto-sku">${Utils.esc(p.sku)}</span>
       <span class="producto-nombre"><strong>${Utils.esc(p.nombre)}</strong>${categoria}</span>
       <span class="producto-unidad">${Utils.esc(unidad)}</span>
@@ -286,16 +278,9 @@ function handleTableClick(e) {
     if (action === 'edit') abrirModal(id);
     else if (action === 'delete') confirmarEliminar(id);
     else if (action === 'reactivate') reactivarProducto(id);
-    else if (action === 'multimedia') verMultimedia(id);
     else if (action === 'view') verDetalle(id);
     else if (action === 'inventario') verInventario(id);
     return;
-  }
-
-  const img = e.target.closest('.producto-img.clickable');
-  if (img) {
-    const id = parseInt(img.dataset.id);
-    verMultimedia(id);
   }
 }
 
@@ -304,13 +289,16 @@ function abrirAccionesProducto(anchor, id) {
   const items = [
     { icon: 'fa-warehouse', text: 'Inventario y movimientos', color: 'var(--primary)', onClick: () => verInventario(id) },
     { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verDetalle(id) },
-    { icon: 'fa-images', text: 'Multimedia', color: 'var(--secondary)', onClick: () => verMultimedia(id) },
   ];
-  if (p && !p.activo) {
+  if (p && !p.activo && (Utils.hasPermiso('PRODUCTOS_EDITAR') || Utils.hasPermiso('PRODUCTOS_CREAR'))) {
     items.push({ icon: 'fa-undo', text: 'Reactivar', color: '#28a745', onClick: () => reactivarProducto(id) });
   }
-  items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
-  items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+  if (Utils.hasPermiso('PRODUCTOS_EDITAR')) {
+    items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+  }
+  if (Utils.hasPermiso('PRODUCTOS_ELIMINAR')) {
+    items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+  }
   Utils.abrirMenuKebab(anchor, items);
 }
 
@@ -326,9 +314,6 @@ async function verDetalle(id) {
   try {
     const p = await API.get('/productos/' + id);
     const unidad = (p.unidadMedida || 'UNIDAD').toLowerCase();
-    const imgUrl = p.multimedia && p.multimedia.length > 0
-      ? API.mediaBaseUrl + (p.multimedia.find(m => m.esPrincipal)?.url || p.multimedia[0].url)
-      : null;
 
     const invHtml = (p.inventarioSucursales || []).map(i =>
       `<tr>
@@ -341,11 +326,7 @@ async function verDetalle(id) {
 
     body.innerHTML = `
       <div class="row g-3">
-        <div class="col-md-4 text-center">
-          ${imgUrl ? `<img src="${Utils.esc(imgUrl)}" alt="${Utils.esc(p.nombre)}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:cover">` : '<div class="no-img mx-auto" style="width:120px;height:120px;font-size:2rem"><i class="fas fa-image"></i></div>'}
-          <div class="mt-2"><span class="${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'Activo' : 'Inactivo'}</span></div>
-        </div>
-        <div class="col-md-8">
+        <div class="col-12">
           <table class="table table-sm table-bordered mb-0">
             <tbody>
               <tr><th class="w-40">SKU</th><td>${Utils.esc(p.sku)}</td></tr>
@@ -557,148 +538,6 @@ async function reactivarProducto(id) {
 async function verInventario(id) {
   state.currentProductoId = id;
   await abrirMovimientosFull();
-}
-
-async function verMultimedia(id) {
-  state.currentProductoId = id;
-  const modalEl = document.getElementById('multimediaModal');
-  if (!modalEl) return;
-
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-  try {
-    const p = await API.get('/productos/' + id);
-    document.getElementById('multimediaProductoName').textContent = p.nombre + ' (' + p.sku + ')';
-    renderMultimedia(p.multimedia || []);
-  } catch (err) {
-    Utils.showToast(err.message, 'error');
-    return;
-  }
-
-  modal.show();
-}
-
-function renderMultimedia(list) {
-  const container = document.getElementById('multimediaGallery');
-  if (!container) return;
-
-  if (!list || list.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-images"></i><p>Sin archivos multimedia</p></div>';
-    return;
-  }
-
-  container.innerHTML = list.map(m => {
-    const mediaUrl = API.mediaBaseUrl + m.url;
-    const isVideo = m.tipo === 'VIDEO';
-    const badge = m.esPrincipal ? '<div class="media-badge"><i class="fas fa-star"></i></div>' : '';
-    return `<div class="media-item">
-      ${badge}
-      ${isVideo
-        ? '<video src="' + Utils.esc(mediaUrl) + '" muted></video>'
-        : '<img src="' + Utils.esc(mediaUrl) + '" alt="' + Utils.esc(m.nombreArchivo) + '">'}
-      <button class="media-delete" data-id="${m.idMultimedia}" title="Eliminar"><i class="fas fa-times"></i></button>
-    </div>`;
-  }).join('');
-
-  container.querySelectorAll('.media-delete').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const id = parseInt(btn.dataset.id);
-      try {
-        await API.del('/productos/multimedia/' + id);
-        Utils.showToast('Archivo eliminado', 'success');
-        verMultimedia(state.currentProductoId);
-      } catch (err) {
-        Utils.showToast(err.message, 'error');
-      }
-    });
-  });
-}
-
-let _camaraStream = null;
-
-async function abrirCamara() {
-  if (!state.currentProductoId) {
-    Utils.showToast('Abre la multimedia de un producto primero', 'warning');
-    return;
-  }
-  const video = document.getElementById('camaraVideo');
-  const status = document.getElementById('camaraStatus');
-  if (!video || !status) return;
-
-  video.srcObject = null;
-  status.textContent = 'Solicitando acceso a la c\u00e1mara...';
-
-  try {
-    _camaraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-    video.srcObject = _camaraStream;
-    status.textContent = 'Enfoca y presiona "Tomar foto"';
-    new bootstrap.Modal(document.getElementById('camaraModal')).show();
-  } catch (err) {
-    status.textContent = '';
-    if (err.name === 'NotAllowedError') {
-      Utils.showToast('Permiso de c\u00e1mara denegado. Verifica la configuraci\u00f3n del navegador.', 'error');
-    } else if (err.name === 'NotFoundError') {
-      Utils.showToast('No se encontr\u00f3 una c\u00e1mara disponible.', 'error');
-    } else {
-      Utils.showToast('Error al acceder a la c\u00e1mara: ' + err.message, 'error');
-    }
-  }
-}
-
-function detenerCamara() {
-  if (_camaraStream) {
-    _camaraStream.getTracks().forEach(t => t.stop());
-    _camaraStream = null;
-  }
-  const video = document.getElementById('camaraVideo');
-  if (video) video.srcObject = null;
-}
-
-function tomarFotoCamara() {
-  const video = document.getElementById('camaraVideo');
-  if (!video || !_camaraStream) return;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-
-  canvas.toBlob(async (blob) => {
-    if (!blob || !state.currentProductoId) return;
-    const file = new File([blob], 'foto_camara_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-    const formData = new FormData();
-    formData.append('archivo', file);
-    formData.append('esPrincipal', 'false');
-
-    try {
-      await API.requestUpload('/productos/' + state.currentProductoId + '/multimedia', formData);
-      Utils.showToast('Foto tomada y subida', 'success');
-      bootstrap.Modal.getInstance(document.getElementById('camaraModal'))?.hide();
-      verMultimedia(state.currentProductoId);
-    } catch (err) {
-      Utils.showToast(err.message, 'error');
-    }
-  }, 'image/jpeg', 0.92);
-}
-
-async function subirMultimedia(e) {
-  const file = e.target.files[0];
-  if (!file || !state.currentProductoId) return;
-
-  const formData = new FormData();
-  formData.append('archivo', file);
-  formData.append('esPrincipal', 'false');
-
-  try {
-    await API.requestUpload('/productos/' + state.currentProductoId + '/multimedia', formData);
-    Utils.showToast('Archivo subido', 'success');
-    verMultimedia(state.currentProductoId);
-  } catch (err) {
-    Utils.showToast(err.message, 'error');
-  }
-
-  e.target.value = '';
 }
 
 function abrirModalMovimiento() {

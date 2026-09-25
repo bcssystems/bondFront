@@ -15,6 +15,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('CONFIGURACION_EDITAR')) {
+    const btn = document.getElementById('btnGuardarConfig');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnGuardarConfig')?.addEventListener('click', guardarTodo);
   document.querySelectorAll('.form-control').forEach(i => {
     i.addEventListener('keydown', e => { if (e.key === 'Enter') guardarTodo(); });

@@ -9,6 +9,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('RECEPCIONES_CREAR')) {
+    const btn = document.getElementById('btnNuevaCompra');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevaCompra')?.addEventListener('click', abrirModal);
   document.getElementById('btnGuardarCompra')?.addEventListener('click', guardar);
   document.getElementById('btnAgregarDetalle')?.addEventListener('click', () => agregarDetalle());
@@ -110,11 +114,14 @@ function handleTableClick(e) {
   if (kebab) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
-    Utils.abrirMenuKebab(kebab, [
+    const items = [
       { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verCompra(id) },
       { icon: 'fa-print', text: 'Imprimir factura', color: 'var(--success)', onClick: () => imprimirFactura(id) },
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => eliminarCompra(id) },
-    ]);
+    ];
+    if (Utils.hasPermiso('RECEPCIONES_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => eliminarCompra(id) });
+    }
+    Utils.abrirMenuKebab(kebab, items);
     return;
   }
   const btn = e.target.closest('.btn-action');

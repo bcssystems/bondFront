@@ -12,9 +12,16 @@ export function init() {
 
 function bindEvents() {
   document.getElementById('btnIngresarChica')?.addEventListener('click', () => abrirMovimientoModal());
-  document.getElementById('btnGastoChica')?.addEventListener('click', abrirGastoModal);
+  if (Utils.hasPermiso('GASTOS_CREAR')) {
+    document.getElementById('btnGastoChica')?.addEventListener('click', abrirGastoModal);
+    document.getElementById('btnSolicitarGastoChica')?.addEventListener('click', solicitarGasto);
+  } else {
+    const b1 = document.getElementById('btnGastoChica');
+    if (b1) b1.style.display = 'none';
+    const b2 = document.getElementById('btnSolicitarGastoChica');
+    if (b2) b2.style.display = 'none';
+  }
   document.getElementById('btnConfirmarMovChica')?.addEventListener('click', confirmarMovimiento);
-  document.getElementById('btnSolicitarGastoChica')?.addEventListener('click', solicitarGasto);
   document.getElementById('btnRealizarCorteChica')?.addEventListener('click', realizarCorte);
   document.getElementById('btnAbrirChica')?.addEventListener('click', abrirCaja);
   document.getElementById('btnCerrarChica')?.addEventListener('click', cerrarCaja);

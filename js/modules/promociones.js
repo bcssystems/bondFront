@@ -18,7 +18,10 @@ export function init() {
 
 function bindEvents() {
   const btnNuevo = document.getElementById('btnNuevaPromocion');
-  if (btnNuevo) btnNuevo.addEventListener('click', () => abrirModal(null));
+  if (btnNuevo) {
+    if (!Utils.hasPermiso('PROMOCIONES_CREAR')) btnNuevo.style.display = 'none';
+    btnNuevo.addEventListener('click', () => abrirModal(null));
+  }
 
   const btnGuardar = document.getElementById('btnGuardarPromocion');
   if (btnGuardar) btnGuardar.addEventListener('click', guardarPromocion);
@@ -168,10 +171,14 @@ function handleTableClick(e) {
   if (kebab) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
-    const items = [
-      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
-    ];
+    const items = [];
+    if (Utils.hasPermiso('PROMOCIONES_EDITAR')) {
+      items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+    }
+    if (Utils.hasPermiso('PROMOCIONES_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+    }
+    if (items.length === 0) return;
     Utils.abrirMenuKebab(kebab, items);
     return;
   }

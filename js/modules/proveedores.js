@@ -6,6 +6,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('PROVEEDORES_CREAR')) {
+    const btn = document.getElementById('btnNuevoProveedor');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevoProveedor')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarProveedor')?.addEventListener('click', guardarProveedor);
   document.getElementById('tableProveedoresBody')?.addEventListener('click', handleTableClick);
@@ -80,10 +84,15 @@ function handleTableClick(e) {
   if (kebab) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
-    Utils.abrirMenuKebab(kebab, [
-      { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-      { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
-    ]);
+    const items = [];
+    if (Utils.hasPermiso('PROVEEDORES_EDITAR')) {
+      items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+    }
+    if (Utils.hasPermiso('PROVEEDORES_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+    }
+    if (items.length === 0) return;
+    Utils.abrirMenuKebab(kebab, items);
     return;
   }
   const item = e.target.closest('.btn-action');

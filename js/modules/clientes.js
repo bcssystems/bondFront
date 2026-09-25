@@ -36,6 +36,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('CLIENTES_CREAR')) {
+    const btn = document.getElementById('btnNuevoCliente');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevoCliente')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCliente')?.addEventListener('click', guardarCliente);
   document.getElementById('tableClientesBody')?.addEventListener('click', handleTableClick);
@@ -219,9 +223,19 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
     ...(Utils.hasPermiso('PRECIOS_CLIENTE_VER') ? [{ icon: 'fa-dollar-sign', text: 'Precios especiales', color: 'var(--success)', onClick: () => abrirModalPrecios(id) }] : []),
-    { icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) },
-    { danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) },
   ];
+  if (Utils.hasPermiso('CLIENTES_EDITAR')) {
+    items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+  }
+  if (Utils.hasPermiso('CLIENTES_EDITAR')) {
+    items.push({ icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) });
+  }
+  if (Utils.hasPermiso('CLIENTES_ELIMINAR')) {
+    items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+  }
+  if (items.length === 0) {
+    items.push({ icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetalleCliente(id) });
+  }
   Utils.abrirMenuKebab(anchor, items);
 }
 

@@ -49,6 +49,10 @@ function bindEvents() {
     cargarMovimientos(0);
   });
 
+  if (!Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
+    const btn = document.getElementById('btnNuevoMovimiento');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevoMovimiento')?.addEventListener('click', abrirModal);
   document.getElementById('btnConfirmarMovimiento')?.addEventListener('click', registrarMovimiento);
   document.getElementById('btnExportMovExcel')?.addEventListener('click', exportarExcel);

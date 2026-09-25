@@ -11,6 +11,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('COTIZACIONES_CREAR')) {
+    const btn = document.getElementById('btnNuevaCotizacion');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevaCotizacion')?.addEventListener('click', abrirModalNueva);
   document.getElementById('tableCotizacionesBody')?.addEventListener('click', handleTableClick);
   document.querySelectorAll('input[name="filtroCotizacion"]').forEach(r => {
@@ -101,9 +105,13 @@ function handleTableClick(e) {
       { icon: 'fa-print', text: 'Imprimir / PDF', color: 'var(--secondary)', onClick: () => printCotizacion(c) },
     ];
     if (vigente) {
-      items.push({ icon: 'fa-pen', text: 'Editar', color: 'var(--warning)', onClick: () => abrirModalEditar(id) });
+      if (Utils.hasPermiso('COTIZACIONES_CREAR')) {
+        items.push({ icon: 'fa-pen', text: 'Editar', color: 'var(--warning)', onClick: () => abrirModalEditar(id) });
+      }
       items.push({ icon: 'fa-cash-register', text: 'Ir a Caja', color: 'var(--success)', onClick: () => irACaja(id) });
-      items.push({ danger: true, icon: 'fa-ban', text: 'Cancelar', onClick: () => abrirCancelar(id) });
+      if (Utils.hasPermiso('COTIZACIONES_CANCELAR')) {
+        items.push({ danger: true, icon: 'fa-ban', text: 'Cancelar', onClick: () => abrirCancelar(id) });
+      }
     }
     Utils.abrirMenuKebab(kebab, items);
     return;

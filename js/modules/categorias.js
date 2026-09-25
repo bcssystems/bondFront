@@ -6,6 +6,10 @@ export function init() {
 }
 
 function bindEvents() {
+  if (!Utils.hasPermiso('CATEGORIAS_CREAR')) {
+    const btn = document.getElementById('btnNuevaCategoria');
+    if (btn) btn.style.display = 'none';
+  }
   document.getElementById('btnNuevaCategoria')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCategoria')?.addEventListener('click', guardarCategoria);
   document.getElementById('btnLimpiarCategoria')?.addEventListener('click', limpiarBusqueda);
@@ -60,14 +64,18 @@ function handleTableClick(e) {
   const id = parseInt(btn.dataset.id);
   const cat = state.data.find(c => c.idCategoria === id);
   if (!cat) return;
-  const items = [
-    { icon: 'fa-edit', text: 'Editar', onClick: () => abrirModal(id) },
-  ];
-  if (cat.activo) {
-    items.push({ icon: 'fa-ban', text: 'Desactivar', danger: true, onClick: () => desactivarCategoria(id) });
-  } else {
-    items.push({ icon: 'fa-check-circle', text: 'Activar', color: '#198754', onClick: () => activarCategoria(id) });
+  const items = [];
+  if (Utils.hasPermiso('CATEGORIAS_EDITAR')) {
+    items.push({ icon: 'fa-edit', text: 'Editar', onClick: () => abrirModal(id) });
   }
+  if (Utils.hasPermiso('CATEGORIAS_ELIMINAR')) {
+    if (cat.activo) {
+      items.push({ icon: 'fa-ban', text: 'Desactivar', danger: true, onClick: () => desactivarCategoria(id) });
+    } else {
+      items.push({ icon: 'fa-check-circle', text: 'Activar', color: '#198754', onClick: () => activarCategoria(id) });
+    }
+  }
+  if (items.length === 0) return;
   Utils.abrirMenuKebab(btn, items);
 }
 

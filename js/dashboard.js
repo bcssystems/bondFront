@@ -36,7 +36,7 @@ function initSidebarDelegation() {
       e.preventDefault();
 
       const permiso = link.getAttribute('data-permiso');
-      if (permiso && !Utils.hasPermiso(permiso)) {
+      if (permiso && !Utils.tienePermisoDeModulo(permiso)) {
         Utils.showToast('No tienes permiso para este módulo', 'warning');
         return;
       }
@@ -82,7 +82,7 @@ const Dashboard = {
       const permiso = link.dataset.permiso;
       const li = link.closest('li');
       if (!li) return;
-      if (permiso && !Utils.hasPermiso(permiso)) {
+      if (permiso && !Utils.tienePermisoDeModulo(permiso)) {
         li.style.display = 'none';
       } else {
         li.style.display = '';
