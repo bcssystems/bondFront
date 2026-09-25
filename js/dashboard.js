@@ -1,6 +1,13 @@
 let _sidebarDelegationReady = false;
 let _dashboardEventsReady = false;
 
+function tienePermisoDeModulo(permisoClave) {
+  if (typeof Utils.tienePermisoDeModulo === 'function') {
+    return Utils.tienePermisoDeModulo(permisoClave);
+  }
+  return Utils.hasPermiso(permisoClave);
+}
+
 function initSidebarDelegation() {
   if (_sidebarDelegationReady) return;
   _sidebarDelegationReady = true;
@@ -36,7 +43,7 @@ function initSidebarDelegation() {
       e.preventDefault();
 
       const permiso = link.getAttribute('data-permiso');
-      if (permiso && !Utils.tienePermisoDeModulo(permiso)) {
+      if (permiso && !tienePermisoDeModulo(permiso)) {
         Utils.showToast('No tienes permiso para este módulo', 'warning');
         return;
       }
@@ -82,7 +89,7 @@ const Dashboard = {
       const permiso = link.dataset.permiso;
       const li = link.closest('li');
       if (!li) return;
-      if (permiso && !Utils.tienePermisoDeModulo(permiso)) {
+      if (permiso && !tienePermisoDeModulo(permiso)) {
         li.style.display = 'none';
       } else {
         li.style.display = '';
