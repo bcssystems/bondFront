@@ -99,7 +99,7 @@ async function cargarStats() {
     document.getElementById('statsStock').textContent = stats.stockGlobal || 0;
     document.getElementById('statsActivos').textContent = stats.activos || 0;
     const costoTotal = stats.costoTotalInventario || 0;
-    document.getElementById('statsCostoTotal').textContent = '$' + costoTotal.toFixed(2);
+    document.getElementById('statsCostoTotal').textContent = Utils.formatMonto(costoTotal);
   } catch (_) {}
 }
 
@@ -116,7 +116,7 @@ async function mostrarCostoPorSucursal() {
     body.innerHTML = data.map(r =>
       '<div class="d-flex justify-content-between align-items-center py-1 border-bottom">' +
         '<span class="fw-semibold small">' + Utils.esc(r.sucursal || '—') + '</span>' +
-        '<span class="fw-bold" style="color:var(--primary)">$' + (parseFloat(r.costo) || 0).toFixed(2) + '</span>' +
+        '<span class="fw-bold" style="color:var(--primary)">' + Utils.formatMonto(parseFloat(r.costo) || 0) + '</span>' +
       '</div>'
     ).join('');
   } catch (_) {
@@ -216,7 +216,7 @@ function renderProductoNode(p) {
       <span class="producto-unidad">${Utils.esc(unidad)}</span>
       <span class="producto-stock ${stockClass}">${stockDisplay}</span>
       <span class="producto-rollos">${rollos != null ? rollos : ''}</span>
-      <span class="producto-precio">$${(p.precioBase || 0).toFixed(2)}</span>
+      <span class="producto-precio">${Utils.formatMonto(p.precioBase || 0)}</span>
       <span class="badge-status ${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
       <div class="producto-actions">
         <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${id}" data-action="menu" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
@@ -333,8 +333,8 @@ async function verDetalle(id) {
               <tr><th>Nombre</th><td>${Utils.esc(p.nombre)}</td></tr>
               <tr><th>Categor&iacute;a</th><td>${Utils.esc(p.categoriaNombre || 'Sin categor&iacute;a')}</td></tr>
               <tr><th>Descripci&oacute;n</th><td>${Utils.esc(p.descripcion || '—')}</td></tr>
-              <tr><th>Precio base</th><td>$${(p.precioBase || 0).toFixed(2)}</td></tr>
-              <tr><th>Costo promedio</th><td>${p.costoPromedio != null ? '$' + p.costoPromedio.toFixed(2) : '—'}</td></tr>
+              <tr><th>Precio base</th><td>${Utils.formatMonto(p.precioBase || 0)}</td></tr>
+              <tr><th>Costo promedio</th><td>${p.costoPromedio != null ? Utils.formatMonto(p.costoPromedio) : '—'}</td></tr>
               <tr><th>Unidad de medida</th><td>${Utils.esc(unidad)}</td></tr>
               <tr><th>Metros por rollo</th><td>${p.metrosPorRollo != null ? p.metrosPorRollo : '—'}</td></tr>
               <tr><th>Stock global</th><td>${p.stockActual != null ? p.stockActual + ' ' + Utils.esc(unidad) : '—'}</td></tr>
@@ -700,13 +700,13 @@ async function exportarInventarioPDF() {
           '<td>' + Utils.esc(r.sku || '') + '</td>' +
           '<td>' + Utils.esc(r.nombre || '') + '</td>' +
           '<td class="right">' + (r.stock || 0) + '</td>' +
-          '<td class="right">' + (r.costoPromedio != null ? '$' + r.costoPromedio.toFixed(2) : '') + '</td>' +
-          '<td class="right">' + (r.costoTotal != null ? '$' + r.costoTotal.toFixed(2) : '') + '</td>' +
+          '<td class="right">' + (r.costoPromedio != null ? Utils.formatMonto(r.costoPromedio) : '') + '</td>' +
+          '<td class="right">' + (r.costoTotal != null ? Utils.formatMonto(r.costoTotal) : '') + '</td>' +
         '</tr>'
       ).join('') +
       '<tr class="total"><td colspan="2">TOTALES</td>' +
         '<td class="right">' + totalStock + '</td><td></td>' +
-        '<td class="right">$' + totalCosto.toFixed(2) + '</td></tr>';
+        '<td class="right">' + Utils.formatMonto(totalCosto) + '</td></tr>';
     } else {
       const sucursalesMap = {};
       for (const r of rows) {
@@ -717,14 +717,14 @@ async function exportarInventarioPDF() {
       filas = Object.entries(sucursalesMap).map(([sucursal, items]) => {
         const totalCosto = items.reduce((s, r) => s + (r.costoTotal || 0), 0);
         const totalStock = items.reduce((s, r) => s + (r.stock || 0), 0);
-        return '<tr style="background:#f1f1f1"><td colspan="5"><strong>' + Utils.esc(sucursal) + '</strong> — Stock: ' + totalStock + ' | Costo: $' + totalCosto.toFixed(2) + '</td></tr>' +
+        return '<tr style="background:#f1f1f1"><td colspan="5"><strong>' + Utils.esc(sucursal) + '</strong> — Stock: ' + totalStock + ' | Costo: ' + Utils.formatMonto(totalCosto) + '</td></tr>' +
           items.map(r =>
             '<tr>' +
               '<td>' + Utils.esc(r.sku || '') + '</td>' +
               '<td>' + Utils.esc(r.nombre || '') + '</td>' +
               '<td class="right">' + (r.stock || 0) + '</td>' +
-              '<td class="right">' + (r.costoPromedio != null ? '$' + r.costoPromedio.toFixed(2) : '') + '</td>' +
-              '<td class="right">' + (r.costoTotal != null ? '$' + r.costoTotal.toFixed(2) : '') + '</td>' +
+              '<td class="right">' + (r.costoPromedio != null ? Utils.formatMonto(r.costoPromedio) : '') + '</td>' +
+              '<td class="right">' + (r.costoTotal != null ? Utils.formatMonto(r.costoTotal) : '') + '</td>' +
             '</tr>'
           ).join('');
       }).join('');

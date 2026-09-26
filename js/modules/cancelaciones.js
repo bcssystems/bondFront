@@ -66,7 +66,7 @@ function renderTable() {
     else contado++;
   });
   const elMonto = document.getElementById('cancelStatsMonto');
-  if (elMonto) elMonto.textContent = '$' + monto.toFixed(2);
+  if (elMonto) elMonto.textContent = Utils.formatMonto(monto);
   const elContado = document.getElementById('cancelStatsContado');
   if (elContado) elContado.textContent = contado;
   const elCredito = document.getElementById('cancelStatsCredito');
@@ -82,7 +82,7 @@ function renderTable() {
     <td>${Utils.esc(v.sucursalNombre || '')}</td>
     <td>${Utils.esc(v.cajaNombre || '')}</td>
     <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
-    <td class="fw-semibold">$${(v.total || 0).toFixed(2)}</td>
+    <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
     <td><span class="badge ${v.tipoVenta === 'CREDITO' ? 'bg-info text-dark' : 'bg-secondary'}">${v.tipoVenta === 'CREDITO' ? 'Cr\u00e9dito' : 'Contado'}</span></td>
     <td>${Utils.esc(v.solicitanteCancelacion || '-')}</td>
     <td style="max-width:220px">${Utils.esc(v.motivoCancelacion || '-')}</td>
@@ -117,7 +117,7 @@ function renderHistorial(list) {
     <td>${Utils.esc(v.sucursalNombre || '')}</td>
     <td>${Utils.esc(v.cajaNombre || '')}</td>
     <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
-    <td class="fw-semibold">$${(v.total || 0).toFixed(2)}</td>
+    <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
     <td><span class="badge ${v.tipoVenta === 'CREDITO' ? 'bg-info text-dark' : 'bg-secondary'}">${v.tipoVenta === 'CREDITO' ? 'Cr\u00e9dito' : 'Contado'}</span></td>
     <td>${Utils.esc(v.autorizadorCancelacion || '-')}</td>
     <td style="max-width:220px">${Utils.esc(v.motivoCancelacion || '-')}</td>
@@ -164,7 +164,7 @@ async function verDetalle(id) {
     const venta = await API.get('/ventas/' + id);
     const detalles = (venta.detalles || []).map(d =>
       '<tr><td>' + Utils.esc(d.productoNombre || d.descripcion || 'Producto') + '</td><td class="text-center">' + d.cantidad +
-      '</td><td>$' + (d.precioUnitario || 0).toFixed(2) + '</td><td>$' + (d.subtotal || 0).toFixed(2) + '</td></tr>'
+      '</td><td>' + Utils.formatMonto(d.precioUnitario || 0) + '</td><td>' + Utils.formatMonto(d.subtotal || 0) + '</td></tr>'
     ).join('');
     const estadoBadge = venta.estado === 'CANCELADA'
       ? '<span class="badge-status badge-inactive">Cancelada</span>'
@@ -173,7 +173,7 @@ async function verDetalle(id) {
       '<div class="small mb-3 p-2 bg-light rounded"><div class="row g-2">' +
         '<div class="col-6"><strong>Caja:</strong> ' + Utils.esc(venta.cajaNombre || '') + '</div>' +
         '<div class="col-6"><strong>Cliente:</strong> ' + (venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador') + '</div>' +
-        '<div class="col-6"><strong>Total:</strong> <span class="fw-bold" style="color:var(--primary)">$' + (venta.total || 0).toFixed(2) + '</span></div>' +
+        '<div class="col-6"><strong>Total:</strong> <span class="fw-bold" style="color:var(--primary)">' + Utils.formatMonto(venta.total || 0) + '</span></div>' +
         '<div class="col-6"><strong>Tipo:</strong> ' + venta.tipoVenta + ' ' + estadoBadge + '</div>' +
         '<div class="col-12"><strong>Motivo:</strong> ' + Utils.esc(venta.motivoCancelacion || '-') +
           ' <small class="text-muted">(solicitado por ' + Utils.esc(venta.solicitanteCancelacion || '-') + ' el ' + Utils.formatDateTime(venta.fechaSolicitudCancelacion) + ')</small></div>' +

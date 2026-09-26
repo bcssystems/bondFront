@@ -129,7 +129,7 @@ function renderTable() {
       ? '<span class="badge bg-info"><i class="fas fa-check me-1"></i>S\u00ed</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>')
       : '<span class="text-muted">-</span>';
     const limiteHtml = c.tieneCredito
-      ? (c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : '<span class="badge bg-warning text-dark">Ilimitado</span>')
+      ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : '<span class="badge bg-warning text-dark">Ilimitado</span>')
       : '-';
     return `<tr${c.enListaNegra ? ' style="background:rgba(220,38,38,0.04)"' : ''}>
     <td>${Utils.esc(c.nombre)}</td>
@@ -137,7 +137,7 @@ function renderTable() {
     <td>${Utils.esc(c.telefono) || '-'}</td>
     <td>${creditoHtml}</td>
     <td>${limiteHtml}</td>
-    <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? '$' + saldo.toFixed(2) : '-'}</td>
+    <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? Utils.formatMonto(saldo) : '-'}</td>
     <td class="text-center">
       <input type="checkbox" class="form-check-input" data-id="${c.idCliente}" data-ln="${c.enListaNegra ? 1 : 0}" data-nombre="${Utils.esc(c.nombre + ' ' + (c.apellidoPaterno||''))}" ${c.enListaNegra ? 'checked' : ''} title="Lista negra">
     </td>
@@ -293,8 +293,8 @@ function abrirDetalleCliente(id) {
 
   const cred = [];
   cred.push('<div class="mb-1"><span class="text-muted">Cr\u00e9dito:</span> ' + (c.tieneCredito ? '<span class="text-success">Habilitado</span>' : '<span class="text-muted">No</span>') + '</div>');
-  cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? '$' + c.limiteCredito.toFixed(2) : 'Ilimitado') : '-') + '</div>');
-  cred.push('<div class="mb-1"><span class="text-muted">Saldo:</span> <strong>' + (c.saldoActual != null ? '$' + c.saldoActual.toFixed(2) : '-') + '</strong></div>');
+  cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : 'Ilimitado') : '-') + '</div>');
+  cred.push('<div class="mb-1"><span class="text-muted">Saldo:</span> <strong>' + (c.saldoActual != null ? Utils.formatMonto(c.saldoActual) : '-') + '</strong></div>');
   cred.push('<div class="mb-0"><span class="text-muted">Lista negra:</span> ' + (c.enListaNegra ? '<span class="text-danger">' + formatear(c.motivoListaNegra) + '</span>' : '<span class="text-success">No</span>') + '</div>');
   document.getElementById('clienteDetalleCredito').innerHTML = cred.join('');
 

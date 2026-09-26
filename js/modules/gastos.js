@@ -73,7 +73,7 @@ function renderTable() {
       <td>${Utils.esc(g.cajaNombre) || '-'}</td>
       <td>${Utils.esc(g.sucursalNombre) || '-'}</td>
       <td>${Utils.esc(g.descripcion)}</td>
-      <td><strong>$${g.monto.toFixed(2)}</strong></td>
+      <td><strong>${Utils.formatMonto(g.monto)}</strong></td>
       <td>${Utils.esc(g.usuario) || '-'}</td>
       <td><span class="badge-status ${badgeClass}">${g.estado}</span></td>
       <td>${Utils.formatDateTime(g.fechaCreacion)}</td>

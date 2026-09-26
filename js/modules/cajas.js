@@ -54,7 +54,7 @@ function renderTable() {
       <td><strong>${Utils.esc(c.nombre)}</strong></td>
       <td><span class="badge-status ${c.tipo === 'CHICA' ? 'badge-warning' : 'badge-active'}">${c.tipo || 'NORMAL'}</span></td>
       <td>${Utils.esc(c.sucursalNombre) || '-'}</td>
-      <td><strong>$${c.saldoActual.toFixed(2)}</strong></td>
+      <td><strong>${Utils.formatMonto(c.saldoActual)}</strong></td>
       <td><span class="badge-status ${activa ? 'badge-active' : 'badge-inactive'}">${c.estado}</span></td>
       <td>${Utils.formatDateTime(c.fechaApertura)}</td>
       <td class="acciones-cell">
@@ -226,7 +226,7 @@ async function verMovimientos(id) {
           <td>${Utils.formatDateTime(m.fecha)}</td>
           <td><span class="badge-status ${esIngreso ? 'badge-active' : 'badge-inactive'}">${m.tipo}</span></td>
           <td style="color:${esIngreso ? 'var(--success)' : 'var(--danger)'};font-weight:600">
-            ${esIngreso ? '+' : '-'}$${m.monto.toFixed(2)}
+            ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
           </td>
           <td>${Utils.esc(m.motivo) || '-'}</td>
         </tr>`;
@@ -247,37 +247,37 @@ async function previewCorte(id) {
       <div class="row g-3">
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Saldo Inicial</small>
-          <h4 class="mb-0">$${corte.saldoInicial.toFixed(2)}</h4>
+          <h4 class="mb-0">${Utils.formatMonto(corte.saldoInicial)}</h4>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Total Ventas</small>
-          <h4 class="mb-0 text-success">$${corte.totalVentas.toFixed(2)}</h4>
+          <h4 class="mb-0 text-success">${Utils.formatMonto(corte.totalVentas)}</h4>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Contado</small>
-          <h5 class="mb-0">$${corte.totalVentasContado.toFixed(2)}</h5>
+          <h5 class="mb-0">${Utils.formatMonto(corte.totalVentasContado)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Cr&eacute;dito</small>
-          <h5 class="mb-0">$${corte.totalVentasCredito.toFixed(2)}</h5>
+          <h5 class="mb-0">${Utils.formatMonto(corte.totalVentasCredito)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Ingresos</small>
-          <h5 class="mb-0 text-success">$${corte.totalIngresos.toFixed(2)}</h5>
+          <h5 class="mb-0 text-success">${Utils.formatMonto(corte.totalIngresos)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Egresos</small>
-          <h5 class="mb-0 text-danger">$${corte.totalEgresos.toFixed(2)}</h5>
+          <h5 class="mb-0 text-danger">${Utils.formatMonto(corte.totalEgresos)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
-          <h5 class="mb-0" style="color:var(--info)">$${(corte.totalAbonos || 0).toFixed(2)}</h5>
+          <h5 class="mb-0" style="color:var(--info)">${Utils.formatMonto(corte.totalAbonos || 0)}</h5>
         </div></div>
       </div>
       <hr>
       <div class="text-center">
         <h5>Saldo Esperado</h5>
-        <h3 class="fw-bold" style="color:var(--primary)">$${corte.saldoEsperado.toFixed(2)}</h3>
+        <h3 class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(corte.saldoEsperado)}</h3>
       </div>
     `;
     document.getElementById('btnRealizarCorte').dataset.cajaId = id;

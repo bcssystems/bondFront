@@ -141,7 +141,7 @@ async function buscar(page) {
           <td>${Utils.esc(v.sucursalNombre || '')}</td>
           <td>${Utils.esc(v.cajaNombre || '')}</td>
           <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
-          <td class="fw-semibold">$${(v.total || 0).toFixed(2)}</td>
+          <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
           <td><span class="badge ${estadoBadge}">${v.estado}</span></td>
           <td>${Utils.formatDateTime(v.fecha)}</td>
           <td class="acciones-cell">${acciones}</td>
@@ -149,7 +149,7 @@ async function buscar(page) {
       }).join('');
 
       document.getElementById('statsCount').textContent = ventas.length;
-      document.getElementById('statsTotal').textContent = '$' + totalMonto.toFixed(2);
+      document.getElementById('statsTotal').textContent = Utils.formatMonto(totalMonto);
       document.getElementById('statsCompletadas').textContent = completadas;
       document.getElementById('statsCanceladas').textContent = canceladas;
       document.getElementById('statsRow').classList.remove('d-none');
@@ -253,8 +253,8 @@ async function verDetalle(id) {
       return `<tr>
         <td>${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
         <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
-        <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-        <td class="right">$${(d.subtotal || 0).toFixed(2)}</td>
+        <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
+        <td class="right">${Utils.formatMonto(d.subtotal || 0)}</td>
       </tr>`;
     }).join('');
 
@@ -272,9 +272,9 @@ async function verDetalle(id) {
         <div class="row g-2">
           <div class="col-4"><strong>Caja:</strong> ${Utils.esc(venta.cajaNombre || '')}</div>
           <div class="col-4"><strong>Cliente:</strong> ${venta.clienteNombre ? Utils.esc(venta.clienteNombre) : 'Mostrador'}</div>
-          <div class="col-4"><strong>Total:</strong> <span class="fw-bold" style="color:var(--primary)">$${(venta.total || 0).toFixed(2)}</span></div>
-          <div class="col-4"><strong>Subtotal:</strong> $${(venta.subtotal || 0).toFixed(2)}</div>
-          <div class="col-4"><strong>Descuento:</strong> $${(venta.descuento || 0).toFixed(2)}</div>
+          <div class="col-4"><strong>Total:</strong> <span class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(venta.total || 0)}</span></div>
+          <div class="col-4"><strong>Subtotal:</strong> ${Utils.formatMonto(venta.subtotal || 0)}</div>
+          <div class="col-4"><strong>Descuento:</strong> ${Utils.formatMonto(venta.descuento || 0)}</div>
           <div class="col-4"><strong>Estado:</strong> <span class="badge ${estadoBadge}">${venta.estado}</span></div>
           ${venta.tipoVenta === 'CREDITO'
             ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
@@ -282,7 +282,7 @@ async function verDetalle(id) {
                <div class="col-4"><strong>Plazo:</strong> ${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</div>`
             : ''}
           ${(venta.pagos || []).length
-            ? `<div class="col-12"><strong>Forma de pago:</strong> ${venta.pagos.map(p => Utils.esc(p.tipoPagoNombre || '') + ' $' + (p.monto || 0).toFixed(2) + (p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : '')).join(' &middot; ')}</div>`
+            ? `<div class="col-12"><strong>Forma de pago:</strong> ${venta.pagos.map(p => Utils.esc(p.tipoPagoNombre || '') + ' ' + Utils.formatMonto(p.monto || 0) + (p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : '')).join(' &middot; ')}</div>`
             : ''}
           ${motivoHtml}
       <table class="table table-sm table-custom mb-0">

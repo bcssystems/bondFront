@@ -162,9 +162,9 @@ function renderClientes() {
     return `<tr class="credito-cliente-row" data-id="${c.idCliente}">
       <td><span class="fw-semibold">${Utils.esc(c.nombre)} ${Utils.esc(c.apellidoPaterno || '')}</span></td>
       <td>${Utils.esc(c.telefono) || '-'}</td>
-      <td class="text-end">$${(c.limiteCredito || 0).toFixed(2)}</td>
-      <td class="text-end fw-semibold ${(c.saldoActual || 0) > 0 ? 'text-danger' : 'text-success'}">$${(c.saldoActual || 0).toFixed(2)}</td>
-      <td class="text-end">$${Math.max(0, disponible).toFixed(2)}</td>
+      <td class="text-end">${Utils.formatMonto(c.limiteCredito || 0)}</td>
+      <td class="text-end fw-semibold ${(c.saldoActual || 0) > 0 ? 'text-danger' : 'text-success'}">${Utils.formatMonto(c.saldoActual || 0)}</td>
+      <td class="text-end">${Utils.formatMonto(Math.max(0, disponible))}</td>
       <td>
         <div class="d-flex justify-content-end">
           <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCliente}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
@@ -211,9 +211,9 @@ function renderDetalle() {
 function actualizarDeudaTotal() {
   const total = (state.creditos || []).reduce((s, c) => s + (c.saldoPendiente || 0), 0);
   const el = document.getElementById('estadoDeudaTotal');
-  if (el) el.textContent = '$' + total.toFixed(2);
+  if (el) el.textContent = Utils.formatMonto(total);
   const el2 = document.getElementById('creditosDeudaTotal');
-  if (el2) el2.textContent = '$' + total.toFixed(2);
+  if (el2) el2.textContent = Utils.formatMonto(total);
 }
 
 function renderCreditos() {
@@ -235,8 +235,8 @@ function renderCreditos() {
     return `<tr>
       <td>${c.idCredito}</td>
       <td>#${c.folioVenta || c.idVenta}</td>
-      <td class="text-end">$${(c.montoOriginal || 0).toFixed(2)}</td>
-      <td class="text-end fw-semibold">$${(c.saldoPendiente || 0).toFixed(2)}</td>
+      <td class="text-end">${Utils.formatMonto(c.montoOriginal || 0)}</td>
+      <td class="text-end fw-semibold">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
       <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
       <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
       <td>
@@ -311,9 +311,9 @@ function renderMovimientos() {
       <td style="font-size:0.8rem">${Utils.esc(venta)}</td>
       <td style="font-size:0.8rem">${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
       <td><span class="${tipoClass} fw-semibold">${tipoLabel}</span></td>
-      <td class="text-end ${tipoClass}">$${(m.monto || 0).toFixed(2)}</td>
+      <td class="text-end ${tipoClass}">${Utils.formatMonto(m.monto || 0)}</td>
       <td><span class="badge ${estado.cls}">${estado.text}</span></td>
-      <td class="text-end">$${(m.saldoNuevo || 0).toFixed(2)}</td>
+      <td class="text-end">${Utils.formatMonto(m.saldoNuevo || 0)}</td>
     </tr>`;
   }).join('');
 }
@@ -370,7 +370,7 @@ function abrirAbonoModal(idCredito) {
   if (!credito) return;
 
   document.getElementById('abonoCreditoInfo').textContent = 'Cr\u00e9dito #' + credito.idCredito + ' | Venta #' + (credito.folioVenta || credito.idVenta);
-  document.getElementById('abonoSaldoPendiente').textContent = '$' + (credito.saldoPendiente || 0).toFixed(2);
+  document.getElementById('abonoSaldoPendiente').textContent = Utils.formatMonto(credito.saldoPendiente || 0);
   document.getElementById('abonoMonto').value = '';
   document.getElementById('abonoTipo').value = 'PARCIAL';
   document.getElementById('abonoTipoPago').value = tipoPagoPorDefecto();
@@ -491,7 +491,7 @@ function abrirAbonoGeneralModal() {
     .filter(c => c.estado === 'ACTIVO')
     .reduce((sum, c) => sum + (c.saldoPendiente || 0), 0);
 
-  document.getElementById('abonoGeneralDeudaTotal').textContent = '$' + deudaTotal.toFixed(2);
+  document.getElementById('abonoGeneralDeudaTotal').textContent = Utils.formatMonto(deudaTotal);
   document.getElementById('abonoGeneralMonto').value = '';
   document.getElementById('abonoGeneralTipoPago').value = tipoPagoPorDefecto();
   new bootstrap.Modal(document.getElementById('abonoGeneralModal')).show();

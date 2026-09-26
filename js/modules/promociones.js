@@ -110,8 +110,8 @@ function renderTable() {
       ? '<span class="badge bg-info">Combo</span>'
       : '<span class="badge bg-success">Promo</span>';
 
-    const precioSugerido = p.precioSugerido != null ? '$' + p.precioSugerido.toFixed(2) : '-';
-    const precioFinal = p.precioFinal != null ? '$' + p.precioFinal.toFixed(2) : '-';
+    const precioSugerido = p.precioSugerido != null ? Utils.formatMonto(p.precioSugerido) : '-';
+    const precioFinal = p.precioFinal != null ? Utils.formatMonto(p.precioFinal) : '-';
 
     const vigencia = Utils.formatDate(p.fechaInicio) + (p.fechaFin ? ' → ' + Utils.formatDate(p.fechaFin) : '');
 
@@ -332,8 +332,8 @@ async function cargarPreciosCombo() {
       state.comboProductos[i]._precioBase = price;
       const priceCell = document.getElementById('comboPrice_' + i);
       const subCell = document.getElementById('comboSubtotal_' + i);
-      if (priceCell) priceCell.textContent = '$' + price.toFixed(2);
-      if (subCell) subCell.textContent = '$' + (price * state.comboProductos[i].cantidad).toFixed(2);
+      if (priceCell) priceCell.textContent = Utils.formatMonto(price);
+      if (subCell) subCell.textContent = Utils.formatMonto(price * state.comboProductos[i].cantidad);
     } catch (_) {}
   }
   recalcularPrecios();

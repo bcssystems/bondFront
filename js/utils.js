@@ -280,6 +280,15 @@ const Utils = {
     return cantidad + ' ' + (u === 'UNIDAD' ? 'pzs' : u.toLowerCase());
   },
 
+  formatMonto(valor) {
+    const n = Number(valor) || 0;
+    const signo = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    const partes = abs.toFixed(2).split('.');
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return signo + '$' + partes.join('.');
+  },
+
   getStockClass(stock, min) {
     if (min && stock <= min) return 'stock-bajo';
     if (min && stock <= min * 1.5) return 'stock-medio';

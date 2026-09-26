@@ -140,7 +140,7 @@ async function verCompra(id) {
     const filas = (r.detalles || []).map(d => `<tr>
       <td>${Utils.esc(d.sku)}</td><td>${Utils.esc(d.productoNombre)}</td>
       <td>${d.metros} m</td><td>${d.rollos}</td>
-      <td>$${d.precioCompra.toFixed(2)}</td><td>$${d.subtotal.toFixed(2)}</td>
+      <td>${Utils.formatMonto(d.precioCompra)}</td><td>${Utils.formatMonto(d.subtotal)}</td>
     </tr>`).join('');
     const body = `
       <div class="mb-2"><strong>Folio:</strong> ${Utils.esc(r.folio)} &nbsp; <strong>Proveedor:</strong> ${Utils.esc(r.proveedorNombre) || '-'}</div>
@@ -167,8 +167,8 @@ function imprimirTicket(r) {
     <td>${Utils.esc(d.productoNombre)}</td><td>${Utils.esc(d.sku)}</td>
     <td style="text-align:center">${d.metros}</td>
     <td style="text-align:center">${d.rollos}</td>
-    <td style="text-align:right">${d.precioCompra.toFixed(2)}</td>
-    <td style="text-align:right">${d.subtotal.toFixed(2)}</td>
+    <td style="text-align:right">${Utils.formatMonto(d.precioCompra)}</td>
+    <td style="text-align:right">${Utils.formatMonto(d.subtotal)}</td>
   </tr>`).join('');
   const total = (r.detalles || []).reduce((s, d) => s + d.subtotal, 0);
 
@@ -203,7 +203,7 @@ function imprimirTicket(r) {
     <div class="totales">
       <span>Total metros: ${Math.round(r.totalMetros * 100) / 100} m</span>
       <span>Total rollos: ${r.totalRollos}</span>
-      <span>Total: $${total.toFixed(2)}</span>
+      <span>Total: ${Utils.formatMonto(total)}</span>
     </div>
     <p class="muted" style="margin-top:24px">Documento generado por el sistema BONDS — Gracias por su preferencia.</p>
     <script>window.onload=function(){window.print();}<\/script>
@@ -244,10 +244,11 @@ function agregarDetalle(producto, metros, precio) {
   }
   const opts = state.productos.map(p =>
     `<option value="${p.idProducto}" data-metros-por-rollo="${p.metrosPorRollo || 1}" data-nombre="${Utils.esc(p.nombre)}">${Utils.esc(p.sku)} - ${Utils.esc(p.nombre)}</option>`).join('');
+  const uid = 'det-producto-' + Date.now() + Math.floor(Math.random() * 1000);
   const fila = document.createElement('tr');
   fila.innerHTML = `
     <td>
-      <select class="form-select form-select-sm det-producto">${opts}</select>
+      <select id="${uid}" class="form-select form-select-sm det-producto">${opts}</select>
     </td>
     <td><input type="number" class="form-control form-control-sm det-metros" value="${metros || ''}" min="1" placeholder="m"></td>
     <td><input type="number" class="form-control form-control-sm det-precio" value="${precio || ''}" min="0" step="0.01" placeholder="$"></td>
@@ -255,6 +256,7 @@ function agregarDetalle(producto, metros, precio) {
     <td class="det-subtotal text-end fw-semibold">$0.00</td>
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>`;
   document.getElementById('tableDetallesCompra').appendChild(fila);
+  Utils.makeSearchableSelect(uid);
   const sel = fila.querySelector('.det-producto');
   if (producto && state.productos.find(p => p.idProducto === producto)) sel.value = producto;
   ['input', 'change'].forEach(ev => {
@@ -277,7 +279,7 @@ function recalcularFila(fila) {
   const metrosPorRollo = opt ? parseFloat(opt.dataset.metrosPorRollo) || 1 : 1;
   const rollos = Math.ceil(metros / metrosPorRollo);
   fila.querySelector('.det-rollos').textContent = rollos;
-  fila.querySelector('.det-subtotal').textContent = '$' + (metros * precio).toFixed(2);
+  fila.querySelector('.det-subtotal').textContent = Utils.formatMonto(metros * precio);
   actualizarTotales();
 }
 

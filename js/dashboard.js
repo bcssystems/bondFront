@@ -8,6 +8,15 @@ function tienePermisoDeModulo(permisoClave) {
   return Utils.hasPermiso(permisoClave);
 }
 
+function tienePermisoDeItem(link) {
+  const permiso = link.getAttribute('data-permiso');
+  if (!permiso) return true;
+  if (link.getAttribute('data-permiso-exact') === 'true') {
+    return Utils.hasPermiso(permiso);
+  }
+  return tienePermisoDeModulo(permiso);
+}
+
 function initSidebarDelegation() {
   if (_sidebarDelegationReady) return;
   _sidebarDelegationReady = true;
@@ -43,7 +52,7 @@ function initSidebarDelegation() {
       e.preventDefault();
 
       const permiso = link.getAttribute('data-permiso');
-      if (permiso && !tienePermisoDeModulo(permiso)) {
+      if (permiso && !tienePermisoDeItem(link)) {
         Utils.showToast('No tienes permiso para este módulo', 'warning');
         return;
       }
@@ -89,7 +98,7 @@ const Dashboard = {
       const permiso = link.dataset.permiso;
       const li = link.closest('li');
       if (!li) return;
-      if (permiso && !tienePermisoDeModulo(permiso)) {
+      if (permiso && !tienePermisoDeItem(link)) {
         li.style.display = 'none';
       } else {
         li.style.display = '';

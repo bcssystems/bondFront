@@ -98,11 +98,11 @@ async function buscar(page) {
         <td>${c.idCorte}</td>
         <td>${Utils.esc(c.cajaNombre || '')}</td>
         <td>${Utils.esc(c.sucursalNombre || '')}</td>
-        <td>$${(c.saldoInicial || 0).toFixed(2)}</td>
-        <td class="fw-semibold">$${(c.totalVentas || 0).toFixed(2)}</td>
-        <td class="text-success">$${(c.totalIngresos || 0).toFixed(2)}</td>
-        <td class="text-danger">$${(c.totalEgresos || 0).toFixed(2)}</td>
-        <td class="fw-bold" style="color:var(--primary)">$${(c.saldoFinalContado || 0).toFixed(2)}</td>
+        <td>${Utils.formatMonto(c.saldoInicial || 0)}</td>
+        <td class="fw-semibold">${Utils.formatMonto(c.totalVentas || 0)}</td>
+        <td class="text-success">${Utils.formatMonto(c.totalIngresos || 0)}</td>
+        <td class="text-danger">${Utils.formatMonto(c.totalEgresos || 0)}</td>
+        <td class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(c.saldoFinalContado || 0)}</td>
         <td>${Utils.formatDateTime(c.fechaApertura)}</td>
         <td>${Utils.formatDateTime(c.fechaCierre)}</td>
         <td>${Utils.esc(c.usuario || '')}</td>
@@ -139,14 +139,14 @@ async function verCorte(id) {
       <div class="col-md-6">
         <div class="panel-card p-3">
           <table class="table table-sm table-borderless mb-0">
-            <tr><td class="text-muted">Saldo Inicial</td><td class="fw-semibold text-end">$${(corte.saldoInicial || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Ventas</td><td class="fw-semibold text-end">$${(corte.totalVentas || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Contado</td><td class="fw-semibold text-end">$${(corte.totalVentasContado || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Cr\u00e9dito</td><td class="fw-semibold text-end">$${(corte.totalVentasCredito || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Ingresos</td><td class="text-success fw-semibold text-end">+$${(corte.totalIngresos || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Egresos</td><td class="text-danger fw-semibold text-end">-$${(corte.totalEgresos || 0).toFixed(2)}</td></tr>
-            <tr><td class="text-muted">Abonos (Cr\u00e9ditos)</td><td class="fw-semibold text-end" style="color:var(--info)">+$${(corte.totalAbonos || 0).toFixed(2)}</td></tr>
-            <tr class="border-top"><td class="fw-bold">Saldo Final</td><td class="fw-bold text-end" style="color:var(--primary)">$${(corte.saldoFinalContado || 0).toFixed(2)}</td></tr>
+            <tr><td class="text-muted">Saldo Inicial</td><td class="fw-semibold text-end">${Utils.formatMonto(corte.saldoInicial || 0)}</td></tr>
+            <tr><td class="text-muted">Ventas</td><td class="fw-semibold text-end">${Utils.formatMonto(corte.totalVentas || 0)}</td></tr>
+            <tr><td class="text-muted">Contado</td><td class="fw-semibold text-end">${Utils.formatMonto(corte.totalVentasContado || 0)}</td></tr>
+            <tr><td class="text-muted">Cr\u00e9dito</td><td class="fw-semibold text-end">${Utils.formatMonto(corte.totalVentasCredito || 0)}</td></tr>
+            <tr><td class="text-muted">Ingresos</td><td class="text-success fw-semibold text-end">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
+            <tr><td class="text-muted">Egresos</td><td class="text-danger fw-semibold text-end">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
+            <tr><td class="text-muted">Abonos (Cr\u00e9ditos)</td><td class="fw-semibold text-end" style="color:var(--info)">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+            <tr class="border-top"><td class="fw-bold">Saldo Final</td><td class="fw-bold text-end" style="color:var(--primary)">${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
           </table>
         </div>
       </div>
@@ -169,22 +169,22 @@ async function verCorte(id) {
             <tbody>
               ${corte.detallePagos.map(d => {
                 const diff = (d.montoReal != null) ? (d.montoReal - (d.monto || 0)) : null;
-                const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + '$' + diff.toFixed(2)) : '-';
+                const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + Utils.formatMonto(diff)) : '-';
                 const diffColor = diff != null ? (diff === 0 ? '' : (diff > 0 ? 'color:var(--success)' : 'color:var(--danger)')) : 'color:#999';
                 return `
               <tr>
                 <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
-                <td class="text-end fw-semibold">$${(d.monto || 0).toFixed(2)}</td>
+                <td class="text-end fw-semibold">${Utils.formatMonto(d.monto || 0)}</td>
                 ${isAdmin ? `<td class="text-end">
                   <input type="number" class="form-control form-control-sm corte-real-input text-end" data-id="${d.idTipoPago}" data-sistema="${(d.monto || 0)}" step="0.01" min="0" value="${(d.montoReal != null ? d.montoReal : (d.monto || 0)).toFixed(2)}" disabled>
-                </td>` : `<td class="text-end fw-semibold">${d.montoReal != null ? '$' + d.montoReal.toFixed(2) : '-'}</td>`}
+                </td>` : `<td class="text-end fw-semibold">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td>`}
                 <td class="text-end fw-semibold" style="${diffColor}">${diffStr}</td>
               </tr>`;}).join('')}
               <tr class="border-top">
                 <td class="fw-bold">Total</td>
-                <td class="text-end fw-bold">$${corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0).toFixed(2)}</td>
-                ${isAdmin ? `<td class="text-end fw-bold corte-total-real">$${(corte.totalReal || corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0)).toFixed(2)}</td>` : `<td class="text-end fw-bold">${corte.totalReal != null ? '$' + corte.totalReal.toFixed(2) : '-'}</td>`}
-                <td class="text-end fw-bold" style="${corte.diferencia != null ? (corte.diferencia === 0 ? '' : (corte.diferencia > 0 ? 'color:var(--success)' : 'color:var(--danger)')) : 'color:#999'}">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + '$' + corte.diferencia.toFixed(2)) : '-'}</td>
+                <td class="text-end fw-bold">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
+                ${isAdmin ? `<td class="text-end fw-bold corte-total-real">${Utils.formatMonto(corte.totalReal || corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>` : `<td class="text-end fw-bold">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>`}
+                <td class="text-end fw-bold" style="${corte.diferencia != null ? (corte.diferencia === 0 ? '' : (corte.diferencia > 0 ? 'color:var(--success)' : 'color:var(--danger)')) : 'color:#999'}">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
               </tr>
             </tbody>
           </table>
@@ -214,7 +214,7 @@ async function verCorte(id) {
                   <td>${Utils.esc(a.cliente || '')}</td>
                   <td>${Utils.formatDateTime(a.fecha)}</td>
                   <td>${Utils.esc(a.tipoPago || '')}</td>
-                  <td class="text-end fw-semibold">$${(a.monto || 0).toFixed(2)}</td>
+                  <td class="text-end fw-semibold">${Utils.formatMonto(a.monto || 0)}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -249,7 +249,7 @@ async function verCorte(id) {
             totalReal += parseFloat(i.value) || 0;
             totalSistema += parseFloat(i.dataset.sistema) || 0;
           });
-          document.querySelector('.corte-total-real').textContent = '$' + totalReal.toFixed(2);
+          document.querySelector('.corte-total-real').textContent = Utils.formatMonto(totalReal);
         });
       });
     }
@@ -310,14 +310,14 @@ function reimprimirCorte() {
   <div class="divider"></div>
   <div class="section-title">Resumen del Corte</div>
   <table class="data-table">
-    <tr><td>Saldo Inicial</td><td>$${(corte.saldoInicial || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Ventas</td><td>$${(corte.totalVentas || 0).toFixed(2)}</td></tr>
-    <tr><td style="padding-left:20px">Ventas Contado</td><td>$${(corte.totalVentasContado || 0).toFixed(2)}</td></tr>
-    <tr><td style="padding-left:20px">Ventas Cr\u00e9dito</td><td>$${(corte.totalVentasCredito || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Ingresos</td><td style="color:#059669">+$${(corte.totalIngresos || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Egresos</td><td style="color:#dc2626">-$${(corte.totalEgresos || 0).toFixed(2)}</td></tr>
-    <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+$${(corte.totalAbonos || 0).toFixed(2)}</td></tr>
-    <tr class="total-row"><td>Saldo Final</td><td>$${(corte.saldoFinalContado || 0).toFixed(2)}</td></tr>
+    <tr><td>Saldo Inicial</td><td>${Utils.formatMonto(corte.saldoInicial || 0)}</td></tr>
+    <tr><td>Total Ventas</td><td>${Utils.formatMonto(corte.totalVentas || 0)}</td></tr>
+    <tr><td style="padding-left:20px">Ventas Contado</td><td>${Utils.formatMonto(corte.totalVentasContado || 0)}</td></tr>
+    <tr><td style="padding-left:20px">Ventas Cr\u00e9dito</td><td>${Utils.formatMonto(corte.totalVentasCredito || 0)}</td></tr>
+    <tr><td>Total Ingresos</td><td style="color:#059669">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
+    <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
+    <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+    <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
   </table>
   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
   <div class="divider"></div>
@@ -331,20 +331,20 @@ function reimprimirCorte() {
     </tr>
     ${corte.detallePagos.map(d => {
       const diff = (d.montoReal != null) ? (d.montoReal - (d.monto || 0)) : null;
-      const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + '$' + diff.toFixed(2)) : 'Sin conteo';
+      const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + Utils.formatMonto(diff)) : 'Sin conteo';
       return `
     <tr>
       <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
-      <td style="text-align:center">$${(d.monto || 0).toFixed(2)}</td>
-      <td style="text-align:center">${d.montoReal != null ? '$' + d.montoReal.toFixed(2) : '-'}</td>
+      <td style="text-align:center">${Utils.formatMonto(d.monto || 0)}</td>
+      <td style="text-align:center">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td>
       <td style="text-align:center">${diffStr}</td>
     </tr>`;
     }).join('')}
     <tr style="font-weight:bold;border-top:2px solid #000;border-bottom:none">
       <td style="padding-top:6px">Total</td>
-      <td style="text-align:center;padding-top:6px">$${corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0).toFixed(2)}</td>
-      <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? '$' + corte.totalReal.toFixed(2) : '-'}</td>
-      <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + '$' + corte.diferencia.toFixed(2)) : '-'}</td>
+      <td style="text-align:center;padding-top:6px">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
+      <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>
+      <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
     </tr>
   </table>` : ''}
   ${corte.abonos && corte.abonos.length > 0 ? `
@@ -364,7 +364,7 @@ function reimprimirCorte() {
       <td>${Utils.esc(a.cliente || '')}</td>
       <td>${a.fecha ? new Date(a.fecha).toLocaleString('es-MX') : '-'}</td>
       <td>${Utils.esc(a.tipoPago || '')}</td>
-      <td style="text-align:center">$${(a.monto || 0).toFixed(2)}</td>
+      <td style="text-align:center">${Utils.formatMonto(a.monto || 0)}</td>
     </tr>`).join('')}
   </table>` : ''}
   <div class="footer">

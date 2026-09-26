@@ -369,19 +369,19 @@ export function printRemisionVenta(venta, opts) {
       <td>${nombre}${attrs}</td>
       <td class="center">${d.cantidad}</td>
       <td class="center small">${Utils.esc(unidad)}</td>
-      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-      <td class="right">$${dSubtotal.toFixed(2)}</td>
+      <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
+      <td class="right">${Utils.formatMonto(dSubtotal)}</td>
     </tr>`;
   }).join('');
 
   const pagoRows = esCredito
-    ? `<tr><td>Cr\u00e9dito &mdash; Pagar\u00e9 #${Utils.esc(venta.folioPagare || '—')}</td><td class="right">$${totalConInteres.toFixed(2)}</td></tr>
-       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">$${((venta.total || 0) * porcentajeInteres / 100).toFixed(2)}</td></tr>`
+    ? `<tr><td>Cr\u00e9dito &mdash; Pagar\u00e9 #${Utils.esc(venta.folioPagare || '—')}</td><td class="right">${Utils.formatMonto(totalConInteres)}</td></tr>
+       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto((venta.total || 0) * porcentajeInteres / 100)}</td></tr>`
     : (venta.pagos || []).length > 0
       ? (venta.pagos || []).map(p => `
     <tr>
       <td>${Utils.esc(p.tipoPagoNombre || '')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
-      <td class="right">$${(p.monto || 0).toFixed(2)}</td>
+      <td class="right">${Utils.formatMonto(p.monto || 0)}</td>
     </tr>`).join('')
       : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
 
@@ -407,7 +407,7 @@ export function printRemisionVenta(venta, opts) {
   const mesExpedicion = now.toLocaleDateString('es-MX', { month: 'long' });
   const anioExpedicion = now.getFullYear();
 
-  const pagareHtml = esCredito ? `
+  const pagareHtml = `
   <div class="pagare">
     <h2 class="pagare-h2">PAGAR\u00c9</h2>
     <div class="pagare-doc-no">FOLIO DE PAGAR\u00c9: ${Utils.esc(venta.folioPagare || '—')}</div>
@@ -417,12 +417,12 @@ export function printRemisionVenta(venta, opts) {
     </div>
     <div class="pagare-bueno-por">
       <span class="pagare-bueno-por-label">BUENO POR</span>
-      <span class="pagare-bueno-por-monto">$${totalConInteres.toFixed(2)}</span>
+      <span class="pagare-bueno-por-monto">${Utils.formatMonto(totalConInteres)}</span>
     </div>
     <p class="pagare-leyenda">
       Debemos y pagar\u00e9(mos) incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este Pagar\u00e9 a la orden de:
       <strong>${Utils.esc(titularPagare)}</strong>, el d\u00eda ${diaExpedicion} de ${Utils.esc(mesExpedicion)} de ${anioExpedicion}.
-      La cantidad de: <strong>$${totalConInteres.toFixed(2)} (${Utils.esc(montoLetras)})</strong>.
+      La cantidad de: <strong>${Utils.formatMonto(totalConInteres)} (${Utils.esc(montoLetras)})</strong>.
     </p>
     <p class="pagare-leyenda">
       CANTIDAD QUE CORRESPONDE AL IMPORTE DE LAS MERCANCIAS QUE SE DETALLAN EN EL PEDIDO CUYO N\u00daMERO COINCIDE CON EL DE ESTE DOCUMENTO QUE HE RECIBIDO DE CONFORMIDAD,
@@ -448,15 +448,15 @@ export function printRemisionVenta(venta, opts) {
         <div class="pagare-firma-nombre">${Utils.esc(deudorNombre)}</div>
       </div>
     </div>
-  </div>` : '';
+  </div>`;
 
   function buildBodyHtml(copyIndex) {
     const totalesHtml = `
   <div class="divider"></div>
   <table class="totals">
-    <tr><td>Subtotal</td><td class="right">$${(venta.subtotal || 0).toFixed(2)}</td></tr>
-    <tr><td>Descuento</td><td class="right">-$${(venta.descuento || 0).toFixed(2)}</td></tr>
-    <tr class="total-row"><td>TOTAL</td><td class="right">$${(esCredito ? totalConInteres : venta.total || 0).toFixed(2)}</td></tr>
+    <tr><td>Subtotal</td><td class="right">${Utils.formatMonto(venta.subtotal || 0)}</td></tr>
+    <tr><td>Descuento</td><td class="right">-${Utils.formatMonto(venta.descuento || 0)}</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td class="right">${Utils.formatMonto(esCredito ? totalConInteres : venta.total || 0)}</td></tr>
   </table>
   <div class="divider"></div>
   <div class="section">
@@ -468,17 +468,9 @@ export function printRemisionVenta(venta, opts) {
   ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
   ${esCredito ? '<div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div><div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div></div>' : ''}`;
 
-    const pieHtml = esCredito
-      ? `<div class="bottom-section pagare-footer">${pagareHtml}</div>`
-      : `<div class="footer">
-      <strong>BONDS</strong> &mdash; Sistema de Administraci\u00f3n<br>
-      Este documento es un comprobante interno de venta<br>
-      ${fechaStr} ${horaStr}
-    </div>`;
+    const pieHtml = `<div class="bottom-section pagare-footer">${pagareHtml}</div>`;
 
-    const cuerpoTotales = esCredito
-      ? totalesHtml + '\n  ' + pieHtml
-      : '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + '</div>';
+    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + '</div>';
 
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
@@ -554,15 +546,15 @@ export function printCotizacion(cotizacion, opts) {
       <td>${nombre}${sku}</td>
       <td class="center">${d.cantidad || 0}</td>
       <td class="center small">—</td>
-      <td class="right">$${(d.precioUnitario || 0).toFixed(2)}</td>
-      <td class="right">$${dSubtotal.toFixed(2)}</td>
+      <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
+      <td class="right">${Utils.formatMonto(dSubtotal)}</td>
     </tr>`;
   }).join('');
 
   const pagoHtml = esCredito
-    ? `<tr><td>Cr\u00e9dito &mdash; Plazo ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">$${totalConInteres.toFixed(2)}</td></tr>
-       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}%</td><td class="right">$${(total * porcentajeInteres / 100).toFixed(2)}</td></tr>`
-    : `<tr><td>Contado</td><td class="right">$${total.toFixed(2)}</td></tr>`;
+    ? `<tr><td>Cr\u00e9dito &mdash; Plazo ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto(totalConInteres)}</td></tr>
+       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}%</td><td class="right">${Utils.formatMonto(total * porcentajeInteres / 100)}</td></tr>`
+    : `<tr><td>Contado</td><td class="right">${Utils.formatMonto(total)}</td></tr>`;
 
   const expiraStr = cotizacion.fechaExpiracion
     ? new Date(cotizacion.fechaExpiracion).toLocaleDateString('es-MX')
@@ -574,9 +566,9 @@ export function printCotizacion(cotizacion, opts) {
   const totalesHtml = `
   <div class="divider"></div>
   <table class="totals">
-    <tr><td>Subtotal</td><td class="right">$${subtotal.toFixed(2)}</td></tr>
-    <tr><td>Env\u00edo</td><td class="right">$${montoEnvio.toFixed(2)}</td></tr>
-    <tr class="total-row"><td>TOTAL</td><td class="right">$${(esCredito ? totalConInteres : total).toFixed(2)}</td></tr>
+    <tr><td>Subtotal</td><td class="right">${Utils.formatMonto(subtotal)}</td></tr>
+    <tr><td>Env\u00edo</td><td class="right">${Utils.formatMonto(montoEnvio)}</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td class="right">${Utils.formatMonto(esCredito ? totalConInteres : total)}</td></tr>
   </table>
   <div class="divider"></div>
   <div class="section">
@@ -653,8 +645,8 @@ function buildEstadoCuentaHtml(payload) {
   const creditosRows = (payload.creditos || []).map(c => `<tr>
     <td>${c.idCredito}</td>
     <td>#${Utils.esc(c.folioPagare || c.folio || '')}</td>
-    <td class="right">$${(c.montoOriginal || 0).toFixed(2)}</td>
-    <td class="right">$${(c.saldoPendiente || 0).toFixed(2)}</td>
+    <td class="right">${Utils.formatMonto(c.montoOriginal || 0)}</td>
+    <td class="right">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
   </tr>`).join('');
 
   const creditosById = {};
@@ -673,8 +665,8 @@ function buildEstadoCuentaHtml(payload) {
       <td>${Utils.esc(venta)}</td>
       <td>${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
       <td>${tipo}${m.tipoPagoNombre ? ' (' + Utils.esc(m.tipoPagoNombre) + ')' : ''}</td>
-      <td class="right">$${(m.monto || 0).toFixed(2)}</td>
-      <td class="right">$${(m.saldoNuevo || 0).toFixed(2)}</td>
+      <td class="right">${Utils.formatMonto(m.monto || 0)}</td>
+      <td class="right">${Utils.formatMonto(m.saldoNuevo || 0)}</td>
     </tr>`;
   }).join('');
 
@@ -695,7 +687,7 @@ function buildEstadoCuentaHtml(payload) {
       <div class="title">Estado de Cuenta</div>
     </div>
     <div class="info-row"><span><strong>Cliente:</strong> ${Utils.esc(nombreCliente)}</span><span><strong>Tel\u00e9fono:</strong> ${Utils.esc(cliente.telefono || '-')}</span></div>
-    <div class="info-row"><span><strong>L\u00edmite de cr\u00e9dito:</strong> $${(cliente.limiteCredito || 0).toFixed(2)}</span><span><strong>Deuda total:</strong> <span class="total">$${totalPendiente.toFixed(2)}</span></span></div>
+    <div class="info-row"><span><strong>L\u00edmite de cr\u00e9dito:</strong> ${Utils.formatMonto(cliente.limiteCredito || 0)}</span><span><strong>Deuda total:</strong> <span class="total">${Utils.formatMonto(totalPendiente)}</span></span></div>
     <div class="info-row"><span><strong>Tasa de mora mensual:</strong> ${tasaMora != null ? tasaMora + '%' : '—'}</span><span><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</span></div>
     <div class="line"></div>
     <h3 class="sub-title">Cr\u00e9ditos</h3>

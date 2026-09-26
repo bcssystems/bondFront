@@ -571,7 +571,7 @@ async function buscarProductos(showAll) {
           </div>
           <div class="text-end">
             <small class="text-muted">${Utils.esc(unidad)} | Stock: ${stock}</small>
-            <div class="fw-bold" style="color:var(--primary)">$${precioMostrar.toFixed(2)}${precioEspecial && precioEspecial > 0 ? ' <span class="badge bg-success" style="font-size:0.55rem">P.E.</span>' : ''}</div>
+            <div class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(precioMostrar)}${precioEspecial && precioEspecial > 0 ? ' <span class="badge bg-success" style="font-size:0.55rem">P.E.</span>' : ''}</div>
             <button class="btn btn-sm ${disabled ? 'btn-secondary' : 'btn-success'} pos-add-cart" data-id="${p.idProducto}" style="font-size:0.7rem" ${disabled ? 'disabled' : ''}>
               <i class="fas fa-cart-plus"></i>
             </button>
@@ -689,8 +689,8 @@ function renderCart() {
           '<button class="pos-cart-qty-btn pos-cart-qty-plus" data-index="' + i + '"><i class="fas fa-plus"></i></button>' +
         '</div>' +
       '</td>' +
-      '<td>$' + d.precioUnitario.toFixed(2) + '</td>' +
-      '<td class="fw-semibold">$' + (d.cantidad * d.precioUnitario).toFixed(2) + '</td>' +
+      '<td>' + Utils.formatMonto(d.precioUnitario) + '</td>' +
+      '<td class="fw-semibold">' + Utils.formatMonto(d.cantidad * d.precioUnitario) + '</td>' +
       '<td><button class="pos-cart-remove" data-index="' + i + '"><i class="fas fa-times"></i></button></td>' +
     '</tr>';
     }).join('');
@@ -846,9 +846,9 @@ function recalcularTotales() {
   descuento = Math.max(0, descuento);
   const total = Math.max(0, subtotal);
 
-  document.getElementById('posSubtotal').textContent = '$' + subtotal.toFixed(2);
-  document.getElementById('posDescuento').textContent = '-$' + descuento.toFixed(2);
-  document.getElementById('posTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('posSubtotal').textContent = Utils.formatMonto(subtotal);
+  document.getElementById('posDescuento').textContent = '-' + Utils.formatMonto(descuento);
+  document.getElementById('posTotal').textContent = Utils.formatMonto(total);
 }
 
 async function limpiarCart() {
@@ -881,7 +881,7 @@ async function cobrarVenta() {
 
   const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
 
-  document.getElementById('posCobroTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('posCobroTotal').textContent = Utils.formatMonto(total);
   document.getElementById('posCobroNota').value = '';
   await cargarFormasPagoCobro();
   new bootstrap.Modal(document.getElementById('posCobroModal')).show();
@@ -961,7 +961,7 @@ function recalcularSumaCobro() {
   const el = document.getElementById('posCobroSuma');
   const cambioEl = document.getElementById('posCobroCambio');
   const cambioVal = document.getElementById('posCobroCambioValor');
-  el.textContent = '$' + suma.toFixed(2);
+  el.textContent = Utils.formatMonto(suma);
 
   if (suma + 0.01 < total) {
     el.style.color = 'var(--danger)';
@@ -969,7 +969,7 @@ function recalcularSumaCobro() {
   } else {
     el.style.color = 'var(--success)';
     if (suma > total + 0.01) {
-      cambioVal.textContent = '$' + (suma - total).toFixed(2);
+      cambioVal.textContent = Utils.formatMonto(suma - total);
       cambioEl.classList.remove('d-none');
     } else {
       cambioEl.classList.add('d-none');
@@ -1018,7 +1018,7 @@ async function confirmarCobro() {
     if (cliente.limiteCredito != null) {
       const disp = cliente.limiteCredito - (cliente.saldoActual || 0);
       if (total > disp) {
-        Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible ($' + disp.toFixed(2) + ')', 'warning');
+        Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible (' + Utils.formatMonto(disp) + ')', 'warning');
         return;
       }
     }
@@ -1123,7 +1123,7 @@ async function imprimirVentaPendiente() {
 
 async function abrirCobroEnviado(venta) {
   state.cobroEnviadoId = venta.idVenta;
-  document.getElementById('posCobroTotal').textContent = '$' + venta.total.toFixed(2);
+  document.getElementById('posCobroTotal').textContent = Utils.formatMonto(venta.total);
   document.getElementById('posCobroNota').value = venta.nota || '';
   await cargarFormasPagoCobro();
   new bootstrap.Modal(document.getElementById('posCobroModal')).show();
@@ -1164,9 +1164,9 @@ async function confirmarPagoEnviado() {
 
 async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
   const cliente = state.clientes.find(c => c.idCliente === clienteId);
-  document.getElementById('posCreditoTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(total);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
-  document.getElementById('posCreditoMontoOriginal').textContent = '$' + total.toFixed(2);
+  document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(total);
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
 }
@@ -1281,14 +1281,14 @@ function imprimirTicketCorte(corte) {
   <div class="divider"></div>
   <div class="section-title">Resumen del Corte</div>
   <table class="data-table">
-    <tr><td>Saldo Inicial</td><td>$${(corte.saldoInicial || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Ventas</td><td>$${(corte.totalVentas || 0).toFixed(2)}</td></tr>
-    <tr><td style="padding-left:20px">Ventas Contado</td><td>$${(corte.totalVentasContado || 0).toFixed(2)}</td></tr>
-    <tr><td style="padding-left:20px">Ventas Cr\u00e9dito</td><td>$${(corte.totalVentasCredito || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Ingresos</td><td style="color:#059669">+$${(corte.totalIngresos || 0).toFixed(2)}</td></tr>
-    <tr><td>Total Egresos</td><td style="color:#dc2626">-$${(corte.totalEgresos || 0).toFixed(2)}</td></tr>
-    <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+$${(corte.totalAbonos || 0).toFixed(2)}</td></tr>
-    <tr class="total-row"><td>Saldo Final</td><td>$${(corte.saldoFinalContado || 0).toFixed(2)}</td></tr>
+    <tr><td>Saldo Inicial</td><td>${Utils.formatMonto(corte.saldoInicial || 0)}</td></tr>
+    <tr><td>Total Ventas</td><td>${Utils.formatMonto(corte.totalVentas || 0)}</td></tr>
+    <tr><td style="padding-left:20px">Ventas Contado</td><td>${Utils.formatMonto(corte.totalVentasContado || 0)}</td></tr>
+    <tr><td style="padding-left:20px">Ventas Cr\u00e9dito</td><td>${Utils.formatMonto(corte.totalVentasCredito || 0)}</td></tr>
+    <tr><td>Total Ingresos</td><td style="color:#059669">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
+    <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
+    <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+    <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
   </table>
   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
   <div class="divider"></div>
@@ -1302,26 +1302,26 @@ function imprimirTicketCorte(corte) {
     </tr>
     ${corte.detallePagos.map(d => {
       const diff = (d.montoReal != null) ? (d.montoReal - (d.monto || 0)) : null;
-      const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + '$' + diff.toFixed(2)) : 'Sin conteo';
+      const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + Utils.formatMonto(diff)) : 'Sin conteo';
       return `
     <tr>
       <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
-      <td style="text-align:center">$${(d.monto || 0).toFixed(2)}</td>
-      <td style="text-align:center">${d.montoReal != null ? '$' + d.montoReal.toFixed(2) : '-'}</td>
+      <td style="text-align:center">${Utils.formatMonto(d.monto || 0)}</td>
+      <td style="text-align:center">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td>
       <td style="text-align:center">${diffStr}</td>
     </tr>`;
     }).join('')}
     <tr style="font-weight:bold;border-top:2px solid #000;border-bottom:none">
       <td style="padding-top:6px">Total</td>
-      <td style="text-align:center;padding-top:6px">$${corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0).toFixed(2)}</td>
-      <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? '$' + corte.totalReal.toFixed(2) : '-'}</td>
-      <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + '$' + corte.diferencia.toFixed(2)) : '-'}</td>
+      <td style="text-align:center;padding-top:6px">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
+      <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>
+      <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
     </tr>
   </table>` : ''}
   ${corte.saldoEsperado != null ? `
   <div class="divider"></div>
   <table class="data-table">
-    <tr><td>Saldo Esperado en Caja</td><td>$${corte.saldoEsperado.toFixed(2)}</td></tr>
+    <tr><td>Saldo Esperado en Caja</td><td>${Utils.formatMonto(corte.saldoEsperado)}</td></tr>
   </table>` : ''}
   <div class="footer">
     <p>--- Fin del Corte ---</p>
@@ -1455,10 +1455,9 @@ async function abrirAbonoPOS(data) {
 
   try {
     const tipos = await API.get('/tipos-pago');
-    document.getElementById('abonoPOSTipoPago').innerHTML = tipos.map(t =>
-      `<option value="${t.idTipoPago}">${Utils.esc(t.nombre)}</option>`).join('');
+    cargarFormasPagoAbonoPOS(tipos);
   } catch (_) {
-    document.getElementById('abonoPOSTipoPago').innerHTML = '<option value="">Sin formas de pago</option>';
+    document.getElementById('abonoPOSPagos').innerHTML = '<div class="text-danger small">Sin formas de pago</div>';
   }
 
   const selCredito = document.getElementById('abonoPOSCredito');
@@ -1469,7 +1468,7 @@ async function abrirAbonoPOS(data) {
       const activos = (creditos || []).filter(c => c.estado === 'ACTIVO' && (c.saldoPendiente || 0) > 0);
       selCredito.innerHTML = '<option value="-1">Abono general (repartir entre todos)</option>' +
         activos.map(c =>
-          `<option value="${c.idCredito}">Cr\u00e9dito #${c.idCredito} \u2014 saldo $${(c.saldoPendiente || 0).toFixed(2)}</option>`).join('');
+          `<option value="${c.idCredito}">Cr\u00e9dito #${c.idCredito} \u2014 saldo ${Utils.formatMonto(c.saldoPendiente || 0)}</option>`).join('');
       if (data?.idCredito && activos.some(c => c.idCredito === data.idCredito)) {
         selCredito.value = String(data.idCredito);
       }
@@ -1488,17 +1487,29 @@ async function confirmarAbonoPOS() {
   const idCliente = state.abonoPOSClienteId;
   const idCredito = parseInt(document.getElementById('abonoPOSCredito').value) || 0;
   const monto = parseFloat(document.getElementById('abonoPOSMonto').value);
-  const idTipoPago = parseInt(document.getElementById('abonoPOSTipoPago').value);
 
   if (!idCliente) { Utils.showToast('Cliente no disponible', 'warning'); return; }
   if (!monto || monto <= 0) { Utils.showToast('Ingresa un monto v\u00e1lido', 'warning'); return; }
-  if (!idTipoPago) { Utils.showToast('Selecciona una forma de pago', 'warning'); return; }
+
+  const pagos = [];
+  let sumaPagos = 0;
+  document.querySelectorAll('.abono-pago-monto').forEach(inp => {
+    const montoPago = parseFloat(inp.value) || 0;
+    if (montoPago <= 0) return;
+    const row = inp.closest('.payment-row');
+    const ref = (row?.querySelector('.abono-pago-referencia')?.value || '').trim();
+    pagos.push({ idTipoPago: parseInt(inp.dataset.id), monto: montoPago, referencia: ref || null });
+    sumaPagos += montoPago;
+  });
+
+  if (pagos.length === 0) { Utils.showToast('Registra al menos una forma de pago con monto', 'warning'); return; }
+  if (Math.abs(sumaPagos - monto) > 0.01) { Utils.showToast('La suma de formas de pago debe ser igual al monto', 'warning'); return; }
 
   try {
     if (idCredito === -1 || idCredito === 0) {
-      await API.post('/creditos/abonos/general', { idCliente: idCliente, monto: monto, idTipoPago: idTipoPago, idCaja: state.caja.idCaja });
+      await API.post('/creditos/abonos/general', { idCliente: idCliente, monto: monto, pagos: pagos, idCaja: state.caja.idCaja });
     } else {
-      await API.post('/creditos/abonos', { idCredito: idCredito, monto: monto, tipo: 'PARCIAL', idTipoPago: idTipoPago, idCaja: state.caja.idCaja });
+      await API.post('/creditos/abonos', { idCredito: idCredito, monto: monto, tipo: 'PARCIAL', pagos: pagos, idCaja: state.caja.idCaja });
     }
     Utils.showToast('Abono registrado e ingreso a caja', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoPOSModal'))?.hide();
@@ -1506,6 +1517,40 @@ async function confirmarAbonoPOS() {
     await refreshCaja();
     await cargarClientesSelect('posCliente');
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function cargarFormasPagoAbonoPOS(tipos) {
+  const container = document.getElementById('abonoPOSPagos');
+  if (!tipos || tipos.length === 0) {
+    container.innerHTML = '<div class="text-muted small">No hay formas de pago configuradas</div>';
+    return;
+  }
+  container.innerHTML = tipos.map(t => `
+    <div class="payment-row border rounded p-2 mb-1">
+      <div class="row g-2 align-items-center">
+        <div class="col-4">
+          <span class="fw-semibold small">${Utils.esc(t.nombre)}</span>
+        </div>
+        <div class="col-8">
+          <div class="input-group input-group-sm mb-1">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control abono-pago-monto" data-id="${t.idTipoPago}" step="0.01" min="0" value="0.00">
+          </div>
+          <input type="text" class="form-control form-control-sm abono-pago-referencia" data-id="${t.idTipoPago}" placeholder="Referencia (opcional)">
+        </div>
+      </div>
+    </div>`).join('');
+  container.addEventListener('input', recalcularSumaAbonoPOS);
+  recalcularSumaAbonoPOS();
+}
+
+function recalcularSumaAbonoPOS() {
+  let suma = 0;
+  document.querySelectorAll('.abono-pago-monto').forEach(inp => {
+    suma += parseFloat(inp.value) || 0;
+  });
+  const el = document.getElementById('abonoPOSSuma');
+  if (el) el.textContent = Utils.formatMonto(suma);
 }
 
 async function solicitarGasto() {
@@ -1538,7 +1583,7 @@ async function previewCorte() {
         '<tbody>' + gastos.map(g => {
           const badge = { 'PENDIENTE': 'badge-warning', 'AUTORIZADO': 'badge-active', 'RECHAZADO': 'badge-inactive' }[g.estado] || 'badge-inactive';
           return '<tr><td>' + Utils.esc(g.descripcion) + '</td>' +
-            '<td class="text-end"><strong>$' + g.monto.toFixed(2) + '</strong></td>' +
+            '<td class="text-end"><strong>' + Utils.formatMonto(g.monto) + '</strong></td>' +
             '<td>' + Utils.esc(g.usuario || '-') + '</td>' +
             '<td><span class="badge-status ' + badge + '">' + g.estado + '</span></td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -1546,39 +1591,39 @@ async function previewCorte() {
       <div class="row g-3">
         <div class="col-4"><div class="panel-card p-3 text-center">
           <small class="text-muted">Saldo Inicial</small>
-          <h5 class="mb-0">$${corte.saldoInicial.toFixed(2)}</h5>
+          <h5 class="mb-0">${Utils.formatMonto(corte.saldoInicial)}</h5>
         </div></div>
         <div class="col-4"><div class="panel-card p-3 text-center">
           <small class="text-muted">Ventas</small>
-          <h5 class="mb-0 text-success">$${corte.totalVentas.toFixed(2)}</h5>
+          <h5 class="mb-0 text-success">${Utils.formatMonto(corte.totalVentas)}</h5>
         </div></div>
         <div class="col-4"><div class="panel-card p-3 text-center">
           <small class="text-muted">Saldo Esperado</small>
-          <h5 class="mb-0" style="color:var(--primary)">$${corte.saldoEsperado.toFixed(2)}</h5>
+          <h5 class="mb-0" style="color:var(--primary)">${Utils.formatMonto(corte.saldoEsperado)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Contado</small>
-          <div>$${corte.totalVentasContado.toFixed(2)}</div>
+          <div>${Utils.formatMonto(corte.totalVentasContado)}</div>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Cr\u00e9dito</small>
-          <div>$${corte.totalVentasCredito.toFixed(2)}</div>
+          <div>${Utils.formatMonto(corte.totalVentasCredito)}</div>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Ingresos</small>
-          <div class="text-success fw-semibold">+$${corte.totalIngresos.toFixed(2)}</div>
+          <div class="text-success fw-semibold">+${Utils.formatMonto(corte.totalIngresos)}</div>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Egresos</small>
-          <div class="text-danger fw-semibold">-$${corte.totalEgresos.toFixed(2)}</div>
+          <div class="text-danger fw-semibold">-${Utils.formatMonto(corte.totalEgresos)}</div>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
-          <div class="fw-semibold" style="color:var(--info)">+$${(corte.totalAbonos || 0).toFixed(2)}</div>
+          <div class="fw-semibold" style="color:var(--info)">+${Utils.formatMonto(corte.totalAbonos || 0)}</div>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Total Gastos</small>
-          <div class="text-danger fw-semibold">-$${corte.totalGastos.toFixed(2)}</div>
+          <div class="text-danger fw-semibold">-${Utils.formatMonto(corte.totalGastos)}</div>
         </div></div>
       </div>
       <hr>
@@ -1606,7 +1651,7 @@ async function previewCorte() {
             </tr>`).join('')}
             <tr class="border-top">
               <td class="fw-bold">Total</td>
-              <td class="text-end fw-bold" id="posCorteTotalReal">$${corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0).toFixed(2)}</td>
+              <td class="text-end fw-bold" id="posCorteTotalReal">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
             </tr>
           </tbody>
         </table>
@@ -1616,14 +1661,14 @@ async function previewCorte() {
           inp.addEventListener('input', function() {
             let totalReal = 0;
             document.querySelectorAll('.corte-real-input').forEach(i => totalReal += parseFloat(i.value) || 0);
-            document.getElementById('posCorteTotalReal').textContent = '$' + totalReal.toFixed(2);
+            document.getElementById('posCorteTotalReal').textContent = Utils.formatMonto(totalReal);
           });
         });
       </script>` : ''}
       <hr>
       <div class="text-center">
         <h5>Saldo Final</h5>
-        <h3 class="fw-bold" style="color:var(--primary)">$${corte.saldoFinalContado.toFixed(2)}</h3>
+        <h3 class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(corte.saldoFinalContado)}</h3>
       </div>
     `;
     new bootstrap.Modal(document.getElementById('posCorteModal')).show();
@@ -1703,7 +1748,7 @@ function renderEsperas() {
         type="button" role="tab" aria-selected="${isActive}"
         style="font-size:0.72rem;padding:4px 8px;white-space:nowrap;cursor:pointer"
         title="${titulo}">
-        ${etiqueta} <small class="text-muted" style="font-weight:600">$${v.total.toFixed(2)}</small>
+        ${etiqueta} <small class="text-muted" style="font-weight:600">${Utils.formatMonto(v.total)}</small>
       </button>
       ${esEnvio ? '' : `<button type="button" class="pos-espera-close" data-espera-del="${v.idVenta}"
         title="Eliminar venta en espera" aria-label="Eliminar venta en espera">&#10005;</button>`}
@@ -1738,7 +1783,7 @@ async function eliminarEspera(idVenta) {
   const ventaId = parseInt(idVenta);
   const ok = await Utils.confirm('Eliminar venta en espera',
     'Se eliminar\u00e1 la cuenta de ' + (venta?.clienteNombre || 'Mostrador')
-    + ' por $' + (venta?.total != null ? venta.total.toFixed(2) : '0.00') + '. \u00bfContinuar?');
+    + ' por ' + Utils.formatMonto(venta?.total != null ? venta.total : 0) + '. \u00bfContinuar?');
   if (!ok) return;
   try {
     await API.post('/ventas/' + ventaId + '/cancelar-espera', {});
@@ -1851,7 +1896,7 @@ async function abrirCancelarVentaModal() {
         </td>
         <td>${v.idVenta}</td>
         <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
-        <td>$${v.total.toFixed(2)}</td>
+        <td>${Utils.formatMonto(v.total)}</td>
         <td>${new Date(v.fecha).toLocaleString()}</td>
         <td><span class="badge-status ${badge}">${v.estado}</span></td>
       </tr>`;
@@ -2097,7 +2142,7 @@ async function cargarPromosActivas() {
               </div>
               <div class="text-end">
                 <div class="badge bg-danger">-${p.descuentoPorcentaje}%</div>
-                <div class="fw-bold mt-1" style="color:var(--primary)">$${(p.precioFinal || 0).toFixed(2)}</div>
+                <div class="fw-bold mt-1" style="color:var(--primary)">${Utils.formatMonto(p.precioFinal || 0)}</div>
               </div>
             </div>
           </div>
@@ -2133,7 +2178,7 @@ async function cargarCombosActivos() {
               </div>
               <div class="text-end">
                 <div class="badge bg-info">-${c.descuentoPorcentaje}%</div>
-                <div class="fw-bold mt-1" style="color:var(--primary)">$${(c.precioFinal || 0).toFixed(2)}</div>
+                <div class="fw-bold mt-1" style="color:var(--primary)">${Utils.formatMonto(c.precioFinal || 0)}</div>
               </div>
             </div>
           </div>

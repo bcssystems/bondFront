@@ -83,8 +83,8 @@ function actualizarResumenCredito() {
   const pagoMensual = totalConInteres / plazo;
   const montoEl = document.getElementById('cotCreditoMontoTotal');
   const pagoEl = document.getElementById('cotCreditoPagoMensual');
-  if (montoEl) montoEl.textContent = '$' + totalConInteres.toFixed(2);
-  if (pagoEl) pagoEl.textContent = '$' + pagoMensual.toFixed(2) + ' x ' + plazo + ' meses';
+  if (montoEl) montoEl.textContent = Utils.formatMonto(totalConInteres);
+  if (pagoEl) pagoEl.textContent = Utils.formatMonto(pagoMensual) + ' x ' + plazo + ' meses';
 }
 
 function getStockSucursal(producto) {
@@ -160,7 +160,7 @@ function renderTable() {
 
   tbody.innerHTML = state.data.map(c => {
     const estadoBadge = getEstadoBadge(c.estado);
-    const envioText = c.cobraEnvio ? '$' + c.montoEnvio.toFixed(2) : '-';
+    const envioText = c.cobraEnvio ? Utils.formatMonto(c.montoEnvio) : '-';
     const expiracion = c.fechaExpiracion ? new Date(c.fechaExpiracion).toLocaleDateString('es-MX') : '-';
     const creacion = c.fechaCreacion ? new Date(c.fechaCreacion).toLocaleDateString('es-MX') : '-';
     const tipoVenta = c.tipoVenta || 'CONTADO';
@@ -171,7 +171,7 @@ function renderTable() {
       '<td>' + Utils.esc(c.clienteNombre || '-') + '</td>' +
       '<td>' + Utils.esc(c.paqueteria || '-') + '</td>' +
       '<td>' + envioText + '</td>' +
-      '<td class="fw-bold">$' + c.total.toFixed(2) + '</td>' +
+      '<td class="fw-bold">' + Utils.formatMonto(c.total) + '</td>' +
       '<td>' + estadoBadge + '</td>' +
       '<td>' + expiracion + '</td>' +
       '<td>' + creacion + '</td>' +
@@ -326,7 +326,7 @@ async function buscarProductos(showAll) {
         return '<div class="pos-product-result-item ' + (disabled ? 'text-muted opacity-50' : '') + '" data-id="' + p.idProducto + '">' +
           '<div>' +
             '<div class="fw-semibold small">' + Utils.esc(p.nombre) + '</div>' +
-            '<small class="text-muted">SKU: ' + Utils.esc(p.sku || '-') + ' | $' + precio.toFixed(2) + ' | Stock: ' + stock + '</small>' +
+            '<small class="text-muted">SKU: ' + Utils.esc(p.sku || '-') + ' | ' + Utils.formatMonto(precio) + ' | Stock: ' + stock + '</small>' +
             (sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : '') +
           '</div>' +
           '<div class="text-end">' +
@@ -427,8 +427,8 @@ function renderCart() {
           '</div>' +
         '</td>' +
         '<td>' + stockHtml + '</td>' +
-        '<td>$' + d.precioUnitario.toFixed(2) + '</td>' +
-        '<td class="fw-semibold' + (exceedsStock ? ' text-danger' : '') + '">$' + (d.cantidad * d.precioUnitario).toFixed(2) + '</td>' +
+        '<td>' + Utils.formatMonto(d.precioUnitario) + '</td>' +
+        '<td class="fw-semibold' + (exceedsStock ? ' text-danger' : '') + '">' + Utils.formatMonto(d.cantidad * d.precioUnitario) + '</td>' +
         '<td><button class="cot-cart-remove" data-index="' + i + '"><i class="fas fa-times"></i></button></td>' +
       '</tr>';
     }).join('');
@@ -474,9 +474,9 @@ function actualizarTotalesCotizacion() {
   const montoEnvio = cobraEnvio ? (parseFloat(document.getElementById('cotMontoEnvio')?.value) || 0) : 0;
   const total = subtotal + montoEnvio;
 
-  document.getElementById('cotSubtotal').textContent = '$' + subtotal.toFixed(2);
-  document.getElementById('cotEnvioTotal').textContent = '$' + montoEnvio.toFixed(2);
-  document.getElementById('cotTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('cotSubtotal').textContent = Utils.formatMonto(subtotal);
+  document.getElementById('cotEnvioTotal').textContent = Utils.formatMonto(montoEnvio);
+  document.getElementById('cotTotal').textContent = Utils.formatMonto(total);
 
   const tipo = document.querySelector('input[name="cotTipoVenta"]:checked')?.value || 'CONTADO';
   if (tipo === 'CREDITO') actualizarResumenCredito();
@@ -543,7 +543,7 @@ async function guardarCotizacion() {
     cargarCotizaciones();
 
     if (creada) {
-      const imprimir = await Utils.confirm('Cotizaci\u00f3n #' + creada.idCotizacion + ' guardada por $' + creada.total.toFixed(2), '\u00bfDeseas imprimir la cotizaci\u00f3n?');
+      const imprimir = await Utils.confirm('Cotizaci\u00f3n #' + creada.idCotizacion + ' guardada por ' + Utils.formatMonto(creada.total), '\u00bfDeseas imprimir la cotizaci\u00f3n?');
       if (imprimir) printCotizacion(creada);
     }
   } catch (err) {
@@ -558,7 +558,7 @@ async function verDetalle(id) {
     document.getElementById('cotDetalleTitle').textContent = 'Cotizaci\u00f3n #' + c.idCotizacion;
 
     const envioHtml = c.cobraEnvio
-      ? '<div class="col-md-4"><small class="text-muted">Env\u00edo</small><div class="fw-bold">$' + c.montoEnvio.toFixed(2) + '</div></div>'
+      ? '<div class="col-md-4"><small class="text-muted">Env\u00edo</small><div class="fw-bold">' + Utils.formatMonto(c.montoEnvio) + '</div></div>'
       : '';
 
     const tipoVenta = c.tipoVenta || 'CONTADO';
@@ -583,8 +583,8 @@ async function verDetalle(id) {
       const pagoMensual = totalConInteres / (c.plazoMeses || 1);
       html += '<div class="col-md-4"><small class="text-muted">Plazo</small><div>' + plazo + ' meses</div></div>' +
         '<div class="col-md-4"><small class="text-muted">Inter\u00e9s</small><div>' + interes + '%</div></div>' +
-        '<div class="col-md-4"><small class="text-muted">Total c/inter\u00e9s</small><div class="fw-bold text-info">$' + totalConInteres.toFixed(2) + '</div></div>' +
-        '<div class="col-md-4"><small class="text-muted">Pago mensual</small><div class="fw-bold">$' + pagoMensual.toFixed(2) + '</div></div>';
+        '<div class="col-md-4"><small class="text-muted">Total c/inter\u00e9s</small><div class="fw-bold text-info">' + Utils.formatMonto(totalConInteres) + '</div></div>' +
+        '<div class="col-md-4"><small class="text-muted">Pago mensual</small><div class="fw-bold">' + Utils.formatMonto(pagoMensual) + '</div></div>';
     }
 
     html += '</div>';
@@ -598,13 +598,13 @@ async function verDetalle(id) {
         '<td class="fw-semibold">' + Utils.esc(d.productoNombre) + '</td>' +
         '<td class="text-muted">' + Utils.esc(d.productoSku || '-') + '</td>' +
         '<td>' + d.cantidad + '</td>' +
-        '<td>$' + d.precioUnitario.toFixed(2) + '</td>' +
-        '<td class="fw-bold">$' + d.subtotal.toFixed(2) + '</td>' +
+        '<td>' + Utils.formatMonto(d.precioUnitario) + '</td>' +
+        '<td class="fw-bold">' + Utils.formatMonto(d.subtotal) + '</td>' +
       '</tr>';
     }
 
     html += '</tbody></table></div>';
-    html += '<div class="text-end mt-3"><span class="fw-bold fs-5" style="color:var(--primary)">Total: $' + c.total.toFixed(2) + '</span></div>';
+    html += '<div class="text-end mt-3"><span class="fw-bold fs-5" style="color:var(--primary)">Total: ' + Utils.formatMonto(c.total) + '</span></div>';
 
     if (c.nota) {
       html += '<div class="mt-3 p-3 rounded small" style="background:#fff8e6;border:1px solid #f0d58c"><strong>Nota:</strong> ' + Utils.esc(c.nota) + '</div>';

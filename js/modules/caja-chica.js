@@ -51,7 +51,7 @@ async function cargarCajaChica() {
     }
     state.caja = caja;
     document.getElementById('chicaNombre').textContent = caja.nombre;
-    document.getElementById('chicaSaldo').textContent = '$' + (caja.saldoActual || 0).toFixed(2);
+    document.getElementById('chicaSaldo').textContent = Utils.formatMonto(caja.saldoActual || 0);
     document.getElementById('chicaApertura').textContent = Utils.formatDateTime(caja.fechaApertura) || '--';
 
     const abierta = caja.estado === 'ABIERTA';
@@ -135,7 +135,7 @@ function renderMovimientos() {
   body.innerHTML = list.map(r => {
     const esIngreso = r.tipo === 'INGRESO';
     const esGasto = r.tipo === 'GASTO';
-    const monto = (esIngreso ? '+' : '-') + '$' + r.monto.toFixed(2);
+    const monto = (esIngreso ? '+' : '-') + Utils.formatMonto(r.monto);
     const montoColor = esIngreso ? 'var(--success)' : 'var(--danger)';
     const estado = r.estado
       ? `<span class="badge-status ${badgeClass[r.estado] || 'badge-inactive'}">${r.estado}</span>`
@@ -258,7 +258,7 @@ async function previewCorte() {
         '<tbody>' + gastos.map(g => {
           const badge = { 'PENDIENTE': 'badge-warning', 'AUTORIZADO': 'badge-active', 'RECHAZADO': 'badge-inactive' }[g.estado] || 'badge-inactive';
           return '<tr><td>' + Utils.esc(g.descripcion) + '</td>' +
-            '<td>' + '<strong>$' + g.monto.toFixed(2) + '</strong></td>' +
+            '<td>' + '<strong>' + Utils.formatMonto(g.monto) + '</strong></td>' +
             '<td>' + Utils.esc(g.usuario || '-') + '</td>' +
             '<td><span class="badge-status ' + badge + '">' + g.estado + '</span></td></tr>';
         }).join('') + '</tbody></table></div>';
@@ -267,19 +267,19 @@ async function previewCorte() {
       <div class="row g-3">
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Saldo Inicial</small>
-          <h4 class="mb-0">$${corte.saldoInicial.toFixed(2)}</h4>
+          <h4 class="mb-0">${Utils.formatMonto(corte.saldoInicial)}</h4>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Ingresos</small>
-          <h5 class="mb-0 text-success">$${corte.totalIngresos.toFixed(2)}</h5>
+          <h5 class="mb-0 text-success">${Utils.formatMonto(corte.totalIngresos)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Egresos</small>
-          <h5 class="mb-0 text-danger">$${corte.totalEgresos.toFixed(2)}</h5>
+          <h5 class="mb-0 text-danger">${Utils.formatMonto(corte.totalEgresos)}</h5>
         </div></div>
         <div class="col-6"><div class="panel-card p-3 text-center">
           <small class="text-muted">Total Gastos</small>
-          <h5 class="mb-0 text-danger">$${corte.totalGastos.toFixed(2)}</h5>
+          <h5 class="mb-0 text-danger">${Utils.formatMonto(corte.totalGastos)}</h5>
         </div></div>
       </div>
       <hr>
@@ -288,7 +288,7 @@ async function previewCorte() {
       <hr>
       <div class="text-center">
         <h5>Saldo Esperado</h5>
-        <h3 class="fw-bold" style="color:var(--primary)">$${corte.saldoEsperado.toFixed(2)}</h3>
+        <h3 class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(corte.saldoEsperado)}</h3>
       </div>
     `;
     new bootstrap.Modal(document.getElementById('chicaCorteModal')).show();
@@ -331,7 +331,7 @@ function exportarMovimientos(formato) {
       `<td>${Utils.esc(r.tipo)}</td>` +
       `<td>${Utils.esc(r.titulo || '-')}</td>` +
       `<td>${Utils.esc(r.estado || '-')}</td>` +
-      `<td class="right">${(r.tipo === 'INGRESO' ? '+' : '-')}$${r.monto.toFixed(2)}</td></tr>`).join('');
+      `<td class="right">${(r.tipo === 'INGRESO' ? '+' : '-')}${Utils.formatMonto(r.monto)}</td></tr>`).join('');
     Utils.openPrintWindow('Movimientos de Caja Chica',
       '<h2>BONDS</h2><h4>Movimientos de Caja Chica</h4>' +
       '<p style="text-align:center;color:#666;font-size:11px">Caja: ' + Utils.esc(state.caja ? state.caja.nombre : '-') + '</p>' +
