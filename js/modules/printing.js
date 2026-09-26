@@ -48,8 +48,8 @@ const TICKET_CSS = `
       text-transform: uppercase;
     }
     .header .logo {
-      max-height: 48px;
-      max-width: 230px;
+      max-height: 72px;
+      max-width: 340px;
       margin-bottom: 4px;
     }
     .header .sub {
@@ -300,8 +300,8 @@ const STATE_CUENTA_CSS = `
       text-transform: uppercase;
     }
     .header .logo {
-      max-height: 44px;
-      max-width: 220px;
+      max-height: 72px;
+      max-width: 340px;
       margin-bottom: 4px;
     }
     .header .sub {

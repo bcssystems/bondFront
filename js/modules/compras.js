@@ -187,7 +187,7 @@ function imprimirTicket(r) {
       @media print{body{padding:0}}
     </style></head><body>
     <div class="header" style="text-align:center;border-bottom:3px solid #2563EB;padding-bottom:8px;margin-bottom:10px">
-      <img src="assets/imgs/logotex.png" style="max-height:48px;max-width:230px" alt="Logotex">
+      <img src="assets/imgs/logotex.png" style="max-height:72px;max-width:340px" alt="Logotex">
       <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-top:4px">Nota de Compra / Factura</div>
       <div class="muted">PRISCILA ARONG KIM LOPEZ</div>
     </div>

@@ -1250,7 +1250,7 @@ function imprimirTicketCorte(corte) {
     .header { text-align: center; margin-bottom: 16px; }
     .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #2563EB; margin-bottom: 2px; }
     .header .sub { font-size: 10px; color: #666; }
-    .header .logo { max-height: 44px; max-width: 200px; margin-bottom: 4px; }
+    .header .logo { max-height: 72px; max-width: 340px; margin-bottom: 4px; }
     .divider { border-top: 1px dashed #000; margin: 8px 0; }
     .info-table { width: 100%; font-size: 11px; margin-bottom: 8px; }
     .info-table td { padding: 2px 4px; }
