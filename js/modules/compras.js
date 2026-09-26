@@ -186,8 +186,9 @@ function imprimirTicket(r) {
       .muted{color:#64748b;font-size:11px}
       @media print{body{padding:0}}
     </style></head><body>
-    <div class="header">
-      <h1>BONDS <span style="font-size:13px;font-weight:400;color:#64748b">— Nota de Compra / Factura</span></h1>
+    <div class="header" style="text-align:center;border-bottom:3px solid #2563EB;padding-bottom:8px;margin-bottom:10px">
+      <img src="assets/imgs/logotex.png" style="max-height:48px;max-width:230px" alt="Logotex">
+      <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-top:4px">Nota de Compra / Factura</div>
       <div class="muted">PRISCILA ARONG KIM LOPEZ</div>
     </div>
     <div class="row">
@@ -205,7 +206,7 @@ function imprimirTicket(r) {
       <span>Total rollos: ${r.totalRollos}</span>
       <span>Total: ${Utils.formatMonto(total)}</span>
     </div>
-    <p class="muted" style="margin-top:24px">Documento generado por el sistema BONDS — Gracias por su preferencia.</p>
+    <p class="muted" style="margin-top:24px">Documento generado por el sistema de Logotex — Gracias por su preferencia.</p>
     <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
 

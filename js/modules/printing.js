@@ -47,6 +47,11 @@ const TICKET_CSS = `
       color: #2563EB;
       text-transform: uppercase;
     }
+    .header .logo {
+      max-height: 48px;
+      max-width: 230px;
+      margin-bottom: 4px;
+    }
     .header .sub {
       font-size: 8pt;
       color: #888;
@@ -294,6 +299,11 @@ const STATE_CUENTA_CSS = `
       color: #2563EB;
       text-transform: uppercase;
     }
+    .header .logo {
+      max-height: 44px;
+      max-width: 220px;
+      margin-bottom: 4px;
+    }
     .header .sub {
       font-size: 7.5pt;
       color: #555;
@@ -385,7 +395,7 @@ export function printRemisionVenta(venta, opts) {
     </tr>`).join('')
       : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
 
-  const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'BONDS' : '');
+  const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'Logotex' : '');
   const lugarPagare = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
   const tasaMora = configs['tasaInteresMoraPagare'] || 0;
   const montoLetras = Utils.numeroALetras(totalConInteres);
@@ -475,8 +485,7 @@ export function printRemisionVenta(venta, opts) {
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
   <div class="header">
-    <h1>BONDS</h1>
-    <div class="sub">Sistema de Administraci\u00f3n</div>
+    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
     <div class="folio">REMISI\u00d3N #${venta.idVenta}</div>
   </div>
   <table class="info-grid">
@@ -589,8 +598,7 @@ export function printCotizacion(cotizacion, opts) {
 <body>
 <div class="print-copy">
   <div class="header">
-    <h1>BONDS</h1>
-    <div class="sub">Sistema de Administraci\u00f3n</div>
+    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
     <div class="folio">COTIZACI\u00d3N #${cotizacion.idCotizacion}</div>
   </div>
   <table class="info-grid">
@@ -617,7 +625,7 @@ export function printCotizacion(cotizacion, opts) {
   ${totalesHtml}
   <div class="bottom-section">
     <div class="footer">
-      <strong>BONDS</strong> &mdash; ${Utils.esc(ganchoEmpresa)}${telefonoEmpresa ? ' &mdash; ' + Utils.esc(telefonoEmpresa) : ''}<br>
+      <strong>Logotex</strong> &mdash; ${Utils.esc(ganchoEmpresa)}${telefonoEmpresa ? ' &mdash; ' + Utils.esc(telefonoEmpresa) : ''}<br>
       Este documento es una cotizaci\u00f3n y no constituye venta ni factura<br>
       ${fechaStr} ${horaStr}
     </div>
@@ -682,7 +690,7 @@ function buildEstadoCuentaHtml(payload) {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta</title>
   <style>${STATE_CUENTA_CSS}</style></head><body>
     <div class="header">
-      <h1>BONDS</h1>
+      <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
       <div class="sub">${Utils.esc(configs['descripcionEmpresa'] || '')} &mdash; ${Utils.esc(configs['direccionEmpresa'] || '')}</div>
       <div class="title">Estado de Cuenta</div>
     </div>

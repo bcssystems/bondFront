@@ -333,7 +333,8 @@ function exportarMovimientos(formato) {
       `<td>${Utils.esc(r.estado || '-')}</td>` +
       `<td class="right">${(r.tipo === 'INGRESO' ? '+' : '-')}${Utils.formatMonto(r.monto)}</td></tr>`).join('');
     Utils.openPrintWindow('Movimientos de Caja Chica',
-      '<h2>BONDS</h2><h4>Movimientos de Caja Chica</h4>' +
+      '<h2><img src="assets/imgs/logotex.png" style="max-height:44px;max-width:200px" alt="Logotex"></h2>' +
+      '<h4>Movimientos de Caja Chica</h4>' +
       '<p style="text-align:center;color:#666;font-size:11px">Caja: ' + Utils.esc(state.caja ? state.caja.nombre : '-') + '</p>' +
       '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Estado</th><th class="right">Monto</th></tr></thead>' +
       '<tbody>' + trs + '</tbody></table>');

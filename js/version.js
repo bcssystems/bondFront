@@ -1,1 +1,1 @@
-var PAYLOAD_VERSION = '3.4.0';
+var PAYLOAD_VERSION = '3.4.1';
