@@ -481,19 +481,14 @@
           <label class="form-label small">Cr&eacute;dito</label>
           <select class="form-select form-select-sm" id="abonoPOSCredito"></select>
         </div>
-        <div class="mb-3">
-          <label class="form-label small">Monto</label>
-          <div class="input-group">
-            <span class="input-group-text">$</span>
-            <input type="number" class="form-control" id="abonoPOSMonto" step="0.01" min="0.01" placeholder="0.00">
-          </div>
+        <div class="text-center mb-3">
+          <small class="text-muted">Total a abonar</small>
+          <h3 class="fw-bold" style="color:var(--primary)" id="abonoPOSSuma">$0.00</h3>
         </div>
-        <div class="mb-3">
-          <label class="form-label small">Formas de pago</label>
-          <div id="abonoPOSPagos"></div>
-          <div class="text-end small mt-1"><strong>Total:</strong> <span id="abonoPOSSuma">$0.00</span></div>
+        <div id="abonoPOSPagos">
+          <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando formas de pago...</div>
         </div>
-        <p class="small text-muted mb-0">El abono registra ingreso a: <strong id="abonoPOSCajaInfo">&mdash;</strong></p>
+        <p class="small text-muted mb-0 mt-3">El abono registra ingreso a: <strong id="abonoPOSCajaInfo">&mdash;</strong></p>
       </div>
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>

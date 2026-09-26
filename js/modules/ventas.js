@@ -1451,8 +1451,8 @@ async function abrirAbonoPOS(data) {
   state.abonoPOSClienteId = data?.idCliente || null;
   const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('abonoPOSModal'));
   document.getElementById('abonoPOSClienteName').textContent = (data?.nombre || 'Cliente') + (data?.idCliente ? '' : '');
-  document.getElementById('abonoPOSMonto').value = '';
   document.getElementById('abonoPOSCajaInfo').textContent = (state.caja?.nombre || '—') + ' | Sucursal: ' + (state.caja?.sucursalNombre || '—');
+  recalcularSumaAbonoPOS();
 
   try {
     const tipos = await API.get('/tipos-pago');
@@ -1487,24 +1487,21 @@ async function confirmarAbonoPOS() {
   if (!state.caja?.idCaja) { Utils.showToast('No hay caja activa', 'error'); return; }
   const idCliente = state.abonoPOSClienteId;
   const idCredito = parseInt(document.getElementById('abonoPOSCredito').value) || 0;
-  const monto = parseFloat(document.getElementById('abonoPOSMonto').value);
 
   if (!idCliente) { Utils.showToast('Cliente no disponible', 'warning'); return; }
-  if (!monto || monto <= 0) { Utils.showToast('Ingresa un monto v\u00e1lido', 'warning'); return; }
 
   const pagos = [];
-  let sumaPagos = 0;
+  let monto = 0;
   document.querySelectorAll('.abono-pago-monto').forEach(inp => {
     const montoPago = parseFloat(inp.value) || 0;
     if (montoPago <= 0) return;
     const row = inp.closest('.payment-row');
     const ref = (row?.querySelector('.abono-pago-referencia')?.value || '').trim();
     pagos.push({ idTipoPago: parseInt(inp.dataset.id), monto: montoPago, referencia: ref || null });
-    sumaPagos += montoPago;
+    monto += montoPago;
   });
 
-  if (pagos.length === 0) { Utils.showToast('Registra al menos una forma de pago con monto', 'warning'); return; }
-  if (Math.abs(sumaPagos - monto) > 0.01) { Utils.showToast('La suma de formas de pago debe ser igual al monto', 'warning'); return; }
+  if (pagos.length === 0 || monto <= 0) { Utils.showToast('Registra al menos una forma de pago con monto', 'warning'); return; }
 
   try {
     if (idCredito === -1 || idCredito === 0) {
@@ -1514,7 +1511,6 @@ async function confirmarAbonoPOS() {
     }
     Utils.showToast('Abono registrado e ingreso a caja', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoPOSModal'))?.hide();
-    document.getElementById('abonoPOSMonto').value = '';
     await refreshCaja();
     await cargarClientesSelect('posCliente');
   } catch (err) { Utils.showToast(err.message, 'error'); }
@@ -1523,24 +1519,28 @@ async function confirmarAbonoPOS() {
 function cargarFormasPagoAbonoPOS(tipos) {
   const container = document.getElementById('abonoPOSPagos');
   if (!tipos || tipos.length === 0) {
-    container.innerHTML = '<div class="text-muted small">No hay formas de pago configuradas</div>';
+    container.innerHTML = '<div class="text-center py-3 text-muted">No hay formas de pago configuradas</div>';
     return;
   }
-  container.innerHTML = tipos.map(t => `
-    <div class="payment-row border rounded p-2 mb-1">
+  container.innerHTML = tipos.map(t => {
+    const isEfectivo = t.nombre.toUpperCase() === 'EFECTIVO';
+    return `<div class="payment-row border rounded p-2 mb-1">
       <div class="row g-2 align-items-center">
-        <div class="col-4">
+        <div class="col-3">
           <span class="fw-semibold small">${Utils.esc(t.nombre)}</span>
         </div>
-        <div class="col-8">
-          <div class="input-group input-group-sm mb-1">
+        <div class="col-3">
+          <div class="input-group input-group-sm">
             <span class="input-group-text">$</span>
             <input type="number" class="form-control abono-pago-monto" data-id="${t.idTipoPago}" step="0.01" min="0" value="0.00">
           </div>
-          <input type="text" class="form-control form-control-sm abono-pago-referencia" data-id="${t.idTipoPago}" placeholder="Referencia (opcional)">
+        </div>
+        <div class="col-6">
+          <input type="text" class="form-control form-control-sm abono-pago-referencia" data-id="${t.idTipoPago}" placeholder="${isEfectivo ? '' : 'Referencia (ej. \u00faltimos 4 d\u00edgitos)'}" ${isEfectivo ? 'disabled' : ''}>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   container.addEventListener('input', recalcularSumaAbonoPOS);
   recalcularSumaAbonoPOS();
 }
