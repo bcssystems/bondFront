@@ -258,6 +258,11 @@ function agregarDetalle(producto, metros, precio) {
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>`;
   document.getElementById('tableDetallesCompra').appendChild(fila);
   Utils.makeSearchableSelect(uid);
+  const detInput = fila.querySelector('.searchable-input');
+  if (detInput) {
+    detInput.placeholder = 'Buscar producto...';
+    detInput.focus();
+  }
   const sel = fila.querySelector('.det-producto');
   if (producto && state.productos.find(p => p.idProducto === producto)) sel.value = producto;
   ['input', 'change'].forEach(ev => {
