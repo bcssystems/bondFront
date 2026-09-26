@@ -264,7 +264,10 @@ function agregarDetalle(producto, metros, precio) {
     detInput.focus();
   }
   const sel = fila.querySelector('.det-producto');
-  if (producto && state.productos.find(p => p.idProducto === producto)) sel.value = producto;
+  if (producto && state.productos.find(p => p.idProducto === producto)) {
+    sel.value = producto;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   ['input', 'change'].forEach(ev => {
     fila.querySelector('.det-metros').addEventListener(ev, () => recalcularFila(fila));
     fila.querySelector('.det-precio').addEventListener(ev, () => recalcularFila(fila));
