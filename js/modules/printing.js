@@ -168,6 +168,11 @@ const TICKET_CSS = `
     .firma-linea { border-top: 1px solid #222; height: 26px; }
 
     .pagare { margin-top: 8px; }
+    .pagare-footer {
+      position: static !important;
+      margin-top: 12px;
+      page-break-inside: avoid;
+    }
     .pagare-h2 {
       text-align: center;
       font-size: 7.5pt;
