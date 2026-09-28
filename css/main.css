@@ -833,6 +833,20 @@ body {
 .pos-cart-remove:hover {
   color: var(--danger);
 }
+.pos-cart-price {
+  background: none;
+  border: none;
+  color: var(--info);
+  cursor: pointer;
+  padding: 2px 5px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  transition: all 0.12s;
+}
+.pos-cart-price:hover {
+  color: var(--primary);
+  background: var(--info-light);
+}
 .cot-cart-remove {
   background: none;
   border: none;

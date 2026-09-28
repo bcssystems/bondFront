@@ -433,11 +433,11 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
       <div class="modal-header border-0">
-        <h5 class="modal-title fw-bold">Solicitar Cancelaci&oacute;n de Venta</h5>
+        <h5 class="modal-title fw-bold">Cancelar Venta</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="table-responsive" style="max-height:350px">
+        <div class="table-responsive" style="max-height:300px">
           <table class="table table-custom table-sm mb-0">
             <thead>
               <tr>
@@ -456,11 +456,54 @@
           <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
           <p class="text-muted mb-0">No hay ventas recientes para solicitar cancelaci&oacute;n</p>
         </div>
+        <div class="d-none mt-3 border rounded bg-light p-3" id="posCancelarPanel">
+          <div class="alert alert-warning py-2 mb-2 small" id="posCancelarInfo"></div>
+          <div class="mb-0 d-none" id="posCancelarMotivoGroup">
+            <label class="form-label small text-muted mb-1">Motivo de la cancelaci&oacute;n</label>
+            <textarea class="form-control form-control-sm" id="posCancelarMotivo" rows="2" maxlength="300" placeholder="Indica el motivo..."></textarea>
+          </div>
+          <div class="mb-0 d-none" id="posCancelarCodigoGroup">
+            <label class="form-label small text-muted mb-1">C&oacute;digo de autorizaci&oacute;n del administrador</label>
+            <input type="text" class="form-control form-control-sm text-center" id="posCancelarCodigo" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+          </div>
+        </div>
       </div>
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
         <button type="button" class="btn btn-danger btn-sm px-4 ripple d-none" id="btnConfirmarCancelarPOS">
-          <i class="fas fa-ban me-1"></i> Solicitar Cancelaci&oacute;n
+          <i class="fas fa-ban me-1"></i> <span id="btnConfirmarCancelarPOSLabel">Solicitar Cancelaci&oacute;n</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posPrecioModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-tag me-1"></i> Modificar Precio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small fw-semibold mb-2" id="posPrecioProducto">&mdash;</p>
+        <div class="mb-2">
+          <label class="form-label small text-muted mb-0">Precio actual</label>
+          <div class="fw-bold" id="posPrecioActual">$0.00</div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small text-muted">Nuevo precio</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="posPrecioNuevo" step="0.01" min="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <p class="small text-muted mb-0 mt-2">El cambio aplica solo a esta l&iacute;nea de la venta, no al cat&aacute;logo.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarPrecioPOS">
+          <i class="fas fa-check me-1"></i> <span id="btnConfirmarPrecioPOSLabel">Aplicar Precio</span>
         </button>
       </div>
     </div>
