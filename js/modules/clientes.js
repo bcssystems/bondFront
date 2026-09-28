@@ -855,7 +855,7 @@ function renderPreciosCliente(precios) {
     body.innerHTML = '<tr><td colspan="3"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>Sin precios especiales</p></div></td></tr>';
     return;
   }
-  body.innerHTML = precios.map(p => `<tr data-id="${p.idPrecioCliente}">
+  body.innerHTML = precios.map(p => `<tr data-id="${p.idPrecioCliente}" data-producto="${p.idProducto}">
     <td>${Utils.esc(p.sku)} - ${Utils.esc(p.productoNombre)}</td>
     <td><input type="number" class="form-control form-control-sm precio-valor" value="${p.precio}" step="0.01" min="0" ${preciosClienteEditable ? '' : 'disabled'}></td>
     <td>${preciosClienteEditable ? `<button class="btn-action" style="color:var(--danger)" data-action="quitar-precio"><i class="fas fa-times"></i></button>` : ''}</td>
@@ -868,10 +868,18 @@ function agregarFilaPrecio() {
   if (!idProducto) { Utils.showToast('Selecciona un producto', 'warning'); return; }
   if (isNaN(monto) || monto <= 0) { Utils.showToast('Indica un precio v\u00e1lido', 'warning'); return; }
   const body = document.getElementById('tablePreciosClienteBody');
-  const existing = body.querySelector('[data-id]') ? false : (body.querySelectorAll('tr[data-nuevo]').length > 0);
+  const filas = body.querySelectorAll('tr[data-id], tr[data-nuevo]');
+  for (const f of filas) {
+    if (parseInt(f.dataset.producto) === parseInt(idProducto)) {
+      Utils.showToast('Ese producto ya tiene un precio especial', 'warning');
+      return;
+    }
+  }
   const prod = preciosClienteProductos.find(p => p.idProducto === parseInt(idProducto));
+  if (!prod) { Utils.showToast('Selecciona un producto v\u00e1lido', 'warning'); return; }
   const fila = document.createElement('tr');
   fila.dataset.nuevo = '1';
+  fila.dataset.producto = prod.idProducto;
   fila.innerHTML = `<td>${Utils.esc(prod.sku)} - ${Utils.esc(prod.nombre)}</td>
     <td><input type="number" class="form-control form-control-sm precio-valor" value="${monto}" step="0.01" min="0"></td>
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar-precio"><i class="fas fa-times"></i></button></td>`;
@@ -898,21 +906,12 @@ async function guardarPreciosCliente() {
   const precios = [];
   for (const f of filas) {
     const valor = parseFloat(f.querySelector('.precio-valor')?.value);
-    const idPrecio = parseInt(f.dataset.id);
-    if (f.dataset.nuevo) {
-      const sku = f.querySelector('td').textContent.split(' - ')[0];
-      const prod = preciosClienteProductos.find(p => p.sku === sku && p.nombre === f.querySelector('td').textContent.slice(sku.length + 3));
-      if (!prod) continue;
-      if (isNaN(valor) || valor <= 0) { Utils.showToast('Precio inv\u00e1lido en ' + sku, 'warning'); return; }
-      precios.push({ idProducto: prod.idProducto, precio: valor });
-    } else {
-      if (!idPrecio) continue;
-      if (isNaN(valor) || valor <= 0) { Utils.showToast('Precio inv\u00e1lido', 'warning'); return; }
-      const existing = await API.get('/clientes/' + id + '/precios');
-      const p = existing.find(x => x.idPrecioCliente === idPrecio);
-      if (!p) continue;
-      precios.push({ idProducto: p.idProducto, precio: valor });
+    const idProducto = parseInt(f.dataset.producto);
+    if (!idProducto || isNaN(valor) || valor <= 0) {
+      Utils.showToast('Revisa el precio de una de las filas', 'warning');
+      return;
     }
+    precios.push({ idProducto: idProducto, precio: valor });
   }
   try {
     await API.put('/clientes/' + id + '/precios', precios);
