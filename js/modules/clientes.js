@@ -827,7 +827,6 @@ async function abrirModalPrecios(id) {
   document.getElementById('preciosClienteNombre').textContent = c ? '- ' + c.nombre + ' ' + (c.apellidoPaterno || '') : '';
   document.getElementById('tablePreciosClienteBody').innerHTML = '<tr><td colspan="3"><div class="empty-state"><i class="fas fa-dollar-sign"></i><p>Cargando...</p></div></td></tr>';
   document.getElementById('btnAgregarPrecioCliente').classList.toggle('d-none', !preciosClienteEditable);
-  document.getElementById('preciosClienteProducto').disabled = !preciosClienteEditable;
   document.getElementById('preciosClienteMonto').disabled = !preciosClienteEditable;
   document.getElementById('btnGuardarPreciosCliente').classList.toggle('d-none', !preciosClienteEditable);
   new bootstrap.Modal(document.getElementById('preciosClienteModal')).show();
@@ -835,6 +834,9 @@ async function abrirModalPrecios(id) {
     const precios = await API.get('/clientes/' + id + '/precios');
     renderPreciosCliente(precios);
     await cargarProductosPrecios();
+    Utils.makeSearchableSelect('preciosClienteProducto');
+    const searchInput = document.getElementById('preciosClienteProducto').parentElement?.querySelector('.searchable-input');
+    if (searchInput) searchInput.disabled = !preciosClienteEditable;
   } catch (err) {
     document.getElementById('tablePreciosClienteBody').innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sin precios</td></tr>';
   }
@@ -884,7 +886,10 @@ function agregarFilaPrecio() {
     <td><input type="number" class="form-control form-control-sm precio-valor" value="${monto}" step="0.01" min="0"></td>
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar-precio"><i class="fas fa-times"></i></button></td>`;
   body.querySelector('tr:last-child').after(fila);
-  document.getElementById('preciosClienteProducto').value = '';
+  const selProducto = document.getElementById('preciosClienteProducto');
+  selProducto.value = '';
+  const searchInput = selProducto.parentElement?.querySelector('.searchable-input');
+  if (searchInput) searchInput.value = '';
   document.getElementById('preciosClienteMonto').value = '';
 }
 
