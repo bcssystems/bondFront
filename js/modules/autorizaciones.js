@@ -16,7 +16,6 @@ function bindEvents() {
     state.filtroEstado = document.getElementById('filterAutEstado').value;
     cargar();
   });
-  document.getElementById('btnActualizarAut')?.addEventListener('click', cargar);
 }
 
 async function cargar() {
