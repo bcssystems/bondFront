@@ -930,7 +930,7 @@ async function cobrarVenta() {
     }
   }
 
-  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posTotal').textContent);
 
   document.getElementById('posCobroTotal').textContent = Utils.formatMonto(total);
   document.getElementById('posCobroNota').value = '';
@@ -944,7 +944,7 @@ async function cargarFormasPagoCobro() {
 
   try {
     const tipos = await API.get('/tipos-pago');
-    const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
+    const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
     const clienteIdSel = parseInt(document.getElementById('posCliente').value) || null;
     const clienteCredito = state.clientes.find(c => c && c.idCliente === clienteIdSel) || null;
     const clienteHabilitaCredito = !!(clienteCredito && clienteCredito.tieneCredito);
@@ -1008,7 +1008,7 @@ function recalcularSumaCobro() {
   document.querySelectorAll('.payment-monto').forEach(inp => {
     suma += parseFloat(inp.value) || 0;
   });
-  const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
   const el = document.getElementById('posCobroSuma');
   const cambioEl = document.getElementById('posCobroCambio');
   const cambioVal = document.getElementById('posCobroCambioValor');
@@ -1036,8 +1036,8 @@ async function confirmarCobro() {
     return;
   }
 
-  const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
-  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
+  const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
 
@@ -1138,8 +1138,8 @@ async function imprimirVentaPendiente() {
     return;
   }
 
-  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
-  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posTotal').textContent);
+  const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
 
   const request = {
@@ -1182,7 +1182,7 @@ async function abrirCobroEnviado(venta) {
 
 async function confirmarPagoEnviado() {
   if (!state.cobroEnviadoId) return;
-  const total = parseFloat(document.getElementById('posCobroTotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
   const pagos = [];
   document.querySelectorAll('.payment-monto').forEach(inp => {
     if (inp.dataset.credito) return;
@@ -1225,8 +1225,8 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
 async function confirmarCreditoPOS() {
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
-  const total = parseFloat(document.getElementById('posCreditoTotal').textContent.replace('$', ''));
-  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posCreditoTotal').textContent);
+  const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
   const plazoMeses = 1;
@@ -1410,8 +1410,8 @@ async function guardarEsperaActiva() {
     return;
   }
 
-  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
-  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posTotal').textContent);
+  const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const request = {
     idCliente: clienteId || null,
@@ -1445,8 +1445,8 @@ async function ponerEnEspera() {
     return;
   }
 
-  const total = parseFloat(document.getElementById('posTotal').textContent.replace('$', ''));
-  const subtotal = parseFloat(document.getElementById('posSubtotal').textContent.replace('$', ''));
+  const total = Utils.parseMonto(document.getElementById('posTotal').textContent);
+  const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
 
   const request = {

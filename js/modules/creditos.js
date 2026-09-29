@@ -47,8 +47,7 @@ function bindEvents() {
   document.getElementById('abonoTipo')?.addEventListener('change', function() {
     const montoInput = document.getElementById('abonoMonto');
     if (this.value === 'LIQUIDACION') {
-      const saldoText = document.getElementById('abonoSaldoPendiente').textContent.replace('$', '');
-      montoInput.value = parseFloat(saldoText) || 0;
+montoInput.value = (Utils.parseMonto(document.getElementById('abonoSaldoPendiente').textContent) || 0).toFixed(2);
     }
   });
 }

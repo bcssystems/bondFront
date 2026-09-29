@@ -289,6 +289,11 @@ const Utils = {
     return signo + '$' + partes.join('.');
   },
 
+  parseMonto(text) {
+    if (text == null) return NaN;
+    return parseFloat(String(text).replace(/[^0-9.\-]/g, ''));
+  },
+
   getStockClass(stock, min) {
     if (min && stock <= min) return 'stock-bajo';
     if (min && stock <= min * 1.5) return 'stock-medio';
