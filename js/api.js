@@ -3,8 +3,12 @@ const API = {
   _mediaBaseUrl: undefined,
   get mediaBaseUrl() {
     if (this._mediaBaseUrl !== undefined) return this._mediaBaseUrl;
-    if (window.location.port && window.location.port !== '8080') {
-      this._mediaBaseUrl = window.location.protocol + '//' + window.location.hostname + ':8080';
+    if (/^https?:\/\//.test(this.baseUrl)) {
+      try {
+        this._mediaBaseUrl = new URL(this.baseUrl).origin;
+      } catch (_) {
+        this._mediaBaseUrl = '';
+      }
     } else {
       this._mediaBaseUrl = '';
     }
