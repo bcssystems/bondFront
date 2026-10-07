@@ -96,7 +96,7 @@ async function cargarCategorias() {
 async function cargarStats() {
   try {
     const stats = await API.get('/productos/stats');
-    document.getElementById('statsStock').textContent = stats.stockGlobal || 0;
+    document.getElementById('statsStock').textContent = Utils.formatCantidad(stats.stockGlobal || 0);
     document.getElementById('statsActivos').textContent = stats.activos || 0;
     const costoTotal = stats.costoTotalInventario || 0;
     document.getElementById('statsCostoTotal').textContent = Utils.formatMonto(costoTotal);
@@ -214,8 +214,8 @@ function renderProductoNode(p) {
       <span class="producto-sku">${Utils.esc(p.sku)}</span>
       <span class="producto-nombre"><strong>${Utils.esc(p.nombre)}</strong>${categoria}</span>
       <span class="producto-unidad">${Utils.esc(unidad)}</span>
-      <span class="producto-stock ${stockClass}">${stockDisplay}</span>
-      <span class="producto-rollos">${rollos != null ? rollos : ''}</span>
+      <span class="producto-stock ${stockClass}">${stockDisplay != null ? Utils.formatCantidad(stockDisplay) : stockDisplay}</span>
+      <span class="producto-rollos">${rollos != null ? Utils.formatCantidad(rollos) : ''}</span>
       <span class="producto-precio">${Utils.formatMonto(p.precioBase || 0)}</span>
       <span class="badge-status ${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'Activo' : 'Inactivo'}</span>
       <div class="producto-actions">
@@ -318,9 +318,9 @@ async function verDetalle(id) {
     const invHtml = (p.inventarioSucursales || []).map(i =>
       `<tr>
         <td>${Utils.esc(i.sucursalNombre)}</td>
-        <td class="fw-semibold">${i.stock} ${Utils.esc(unidad)}</td>
-        <td>${i.stockMinimo != null ? i.stockMinimo : '-'}</td>
-        <td>${i.stockMaximo != null ? i.stockMaximo : '-'}</td>
+        <td class="fw-semibold">${i.stock != null ? Utils.formatCantidad(i.stock) : '-'} ${Utils.esc(unidad)}</td>
+        <td>${i.stockMinimo != null ? Utils.formatCantidad(i.stockMinimo) : '-'}</td>
+        <td>${i.stockMaximo != null ? Utils.formatCantidad(i.stockMaximo) : '-'}</td>
       </tr>`
     ).join('') || '<tr><td colspan="4" class="text-muted">Sin stock en sucursales</td></tr>';
 
@@ -337,7 +337,7 @@ async function verDetalle(id) {
               <tr><th>Costo promedio</th><td>${p.costoPromedio != null ? Utils.formatMonto(p.costoPromedio) : '—'}</td></tr>
               <tr><th>Unidad de medida</th><td>${Utils.esc(unidad)}</td></tr>
               <tr><th>Metros por rollo</th><td>${p.metrosPorRollo != null ? p.metrosPorRollo : '—'}</td></tr>
-              <tr><th>Stock global</th><td>${p.stockActual != null ? p.stockActual + ' ' + Utils.esc(unidad) : '—'}</td></tr>
+              <tr><th>Stock global</th><td>${p.stockActual != null ? Utils.formatCantidad(p.stockActual) + ' ' + Utils.esc(unidad) : '—'}</td></tr>
             </tbody>
           </table>
         </div>
@@ -435,13 +435,13 @@ async function generarStockInputs(editingId) {
           <div class="fw-semibold small mb-1">${Utils.esc(s.nombre)}</div>
           <div class="row g-1">
             <div class="col-4">
-              <input type="number" class="form-control form-control-sm stock-input" id="stock_${s.idSucursal}" placeholder="Stock" min="0" ${editingId ? '' : 'value="0"'}>
+              <input type="number" class="form-control form-control-sm stock-input" id="stock_${s.idSucursal}" placeholder="Stock" min="0" step="0.01" ${editingId ? '' : 'value="0"'}>
             </div>
             <div class="col-4">
-              <input type="number" class="form-control form-control-sm" id="stockMin_${s.idSucursal}" placeholder="M\u00edn" min="0">
+              <input type="number" class="form-control form-control-sm" id="stockMin_${s.idSucursal}" placeholder="M\u00edn" min="0" step="0.01">
             </div>
             <div class="col-4">
-              <input type="number" class="form-control form-control-sm" id="stockMax_${s.idSucursal}" placeholder="M\u00e1x" min="0">
+              <input type="number" class="form-control form-control-sm" id="stockMax_${s.idSucursal}" placeholder="M\u00e1x" min="0" step="0.01">
             </div>
           </div>
         </div>
@@ -456,18 +456,21 @@ async function guardarProducto() {
   Utils.syncSearchableSelects();
 
   let inventarios = [];
+  let stockInvalido = false;
   try {
     const sucursales = await API.get('/sucursales');
     sucursales.forEach(s => {
-      const stock = parseInt(document.getElementById('stock_' + s.idSucursal).value) || 0;
-      const stockMin = parseInt(document.getElementById('stockMin_' + s.idSucursal).value) || null;
-      const stockMax = parseInt(document.getElementById('stockMax_' + s.idSucursal).value) || null;
+      const stock = Utils.parseCantidad(document.getElementById('stock_' + s.idSucursal).value) || 0;
+      const stockMin = Utils.parseCantidad(document.getElementById('stockMin_' + s.idSucursal).value) || null;
+      const stockMax = Utils.parseCantidad(document.getElementById('stockMax_' + s.idSucursal).value) || null;
+      if (!isFinite(stock) || stock < 0) stockInvalido = true;
       inventarios.push({ idSucursal: s.idSucursal, stock: stock, stockMinimo: stockMin, stockMaximo: stockMax });
     });
   } catch (err) {
     Utils.showToast('Error al cargar sucursales', 'error');
     return;
   }
+  if (stockInvalido) { Utils.showToast('Stock inv\u00e1lido', 'warning'); return; }
 
   const data = {
     sku: document.getElementById('productoSku').value.trim(),
@@ -484,6 +487,16 @@ async function guardarProducto() {
 
   if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
   if (!data.idCategoria) { Utils.showToast('La categor\u00eda es obligatoria', 'warning'); return; }
+  if (Utils.esUnidadEntera(data.unidadMedida)) {
+    const conDecimales = inventarios.some(inv =>
+      Math.abs(inv.stock - Math.round(inv.stock)) > 1e-9 ||
+      (inv.stockMinimo != null && Math.abs(inv.stockMinimo - Math.round(inv.stockMinimo)) > 1e-9) ||
+      (inv.stockMaximo != null && Math.abs(inv.stockMaximo - Math.round(inv.stockMaximo)) > 1e-9));
+    if (conDecimales) {
+      Utils.showToast('Un producto por UNIDAD no puede tener cantidades con decimales', 'warning');
+      return;
+    }
+  }
 
   try {
     if (state.editingId) {
@@ -553,13 +566,18 @@ function abrirModalMovimiento() {
 
   document.getElementById('btnGuardarMovimiento').onclick = async () => {
     const tipo = document.getElementById('movimientoTipo').value;
-    const cantidad = parseInt(document.getElementById('movimientoCantidad').value) || 0;
+    const cantidad = Utils.parseCantidad(document.getElementById('movimientoCantidad').value) || 0;
     const referencia = document.getElementById('movimientoReferencia').value.trim();
     const observacion = document.getElementById('movimientoObservacion').value.trim();
     const idProducto = parseInt(document.getElementById('movimientoProductoId').value);
 
-    if (!cantidad || cantidad <= 0) {
+    if (!isFinite(cantidad) || cantidad <= 0) {
       Utils.showToast('La cantidad debe ser mayor a 0', 'warning');
+      return;
+    }
+    const prodMov = await API.get('/productos/' + idProducto).catch(() => null);
+    if (prodMov && !Utils.cantidadValida(cantidad, prodMov.unidadMedida)) {
+      Utils.showToast('La cantidad debe ser un n\u00famero entero', 'warning');
       return;
     }
 
@@ -717,7 +735,7 @@ async function exportarInventarioPDF() {
       filas = Object.entries(sucursalesMap).map(([sucursal, items]) => {
         const totalCosto = items.reduce((s, r) => s + (r.costoTotal || 0), 0);
         const totalStock = items.reduce((s, r) => s + (r.stock || 0), 0);
-        return '<tr style="background:#f1f1f1"><td colspan="5"><strong>' + Utils.esc(sucursal) + '</strong> — Stock: ' + totalStock + ' | Costo: ' + Utils.formatMonto(totalCosto) + '</td></tr>' +
+        return '<tr style="background:#f1f1f1"><td colspan="5"><strong>' + Utils.esc(sucursal) + '</strong> — Stock: ' + Utils.formatCantidad(totalStock) + ' | Costo: ' + Utils.formatMonto(totalCosto) + '</td></tr>' +
           items.map(r =>
             '<tr>' +
               '<td>' + Utils.esc(r.sku || '') + '</td>' +
@@ -789,7 +807,7 @@ async function cargarMovimientosFull(page) {
           <td><span class="badge ${badgeClass}">${Utils.esc(m.tipoMovimiento)}</span></td>
           <td class="fw-semibold">${Utils.esc(m.productoNombre || '')}<br><small class="text-muted">${Utils.esc(m.productoSku || '')}</small></td>
           <td>${m.cantidad != null ? m.cantidad : '-'}</td>
-          <td>${m.stockAnterior != null ? m.stockAnterior + ' \u2192 ' + m.stockNuevo : '-'}</td>
+          <td>${m.stockAnterior != null ? Utils.formatCantidad(m.stockAnterior) + ' \u2192 ' + Utils.formatCantidad(m.stockNuevo) : '-'}</td>
           <td>${Utils.esc(m.sucursalNombre || 'Global')}</td>
           <td>${Utils.esc(m.referencia || '\u2014')}</td>
           <td>${Utils.esc(m.usuario || '\u2014')}</td>

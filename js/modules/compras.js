@@ -30,7 +30,7 @@ async function cargarStats() {
     document.getElementById('statCompras').textContent = stats.totalRecepciones || 0;
     document.getElementById('statMetros').textContent = (Math.round((stats.totalMetros || 0) * 100) / 100) + ' m';
     document.getElementById('statRollos').textContent = stats.totalRollos || 0;
-    document.getElementById('statMetros30').textContent = (Math.round((stats.metros30Dias || 0) * 100) / 100) + ' m';
+    document.getElementById('statMetros30').textContent = Utils.formatCantidad(stats.metros30Dias || 0) + ' m';
   } catch (err) { /* silencioso */ }
 }
 
@@ -139,7 +139,7 @@ async function verCompra(id) {
     const r = await API.get('/recepciones/' + id);
     const filas = (r.detalles || []).map(d => `<tr>
       <td>${Utils.esc(d.sku)}</td><td>${Utils.esc(d.productoNombre)}</td>
-      <td>${d.metros} m</td><td>${d.rollos}</td>
+      <td>${Utils.formatCantidad(d.metros)} m</td><td>${Utils.formatCantidad(d.rollos)}</td>
       <td>${Utils.formatMonto(d.precioCompra)}</td><td>${Utils.formatMonto(d.subtotal)}</td>
     </tr>`).join('');
     const body = `
@@ -150,7 +150,7 @@ async function verCompra(id) {
         <thead><tr><th>SKU</th><th>Producto</th><th>Metros</th><th>Rollos</th><th>P.Compra</th><th>Subtotal</th></tr></thead>
         <tbody>${filas}</tbody>
       </table></div>
-      <div class="d-flex justify-content-end gap-4"><div class="fw-bold">Total metros: ${Math.round(r.totalMetros * 100) / 100} m</div><div class="fw-bold">Total rollos: ${r.totalRollos}</div></div>`;
+      <div class="d-flex justify-content-end gap-4"><div class="fw-bold">Total metros: ${Utils.formatCantidad(r.totalMetros)} m</div><div class="fw-bold">Total rollos: ${Utils.formatCantidad(r.totalRollos)}</div></div>`;
     Utils.showDialog('Compra ' + Utils.esc(r.folio), body);
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
@@ -165,8 +165,8 @@ async function imprimirFactura(id) {
 function imprimirTicket(r) {
   const filas = (r.detalles || []).map(d => `<tr>
     <td>${Utils.esc(d.productoNombre)}</td><td>${Utils.esc(d.sku)}</td>
-    <td style="text-align:center">${d.metros}</td>
-    <td style="text-align:center">${d.rollos}</td>
+    <td style="text-align:center">${Utils.formatCantidad(d.metros)}</td>
+    <td style="text-align:center">${Utils.formatCantidad(d.rollos)}</td>
     <td style="text-align:right">${Utils.formatMonto(d.precioCompra)}</td>
     <td style="text-align:right">${Utils.formatMonto(d.subtotal)}</td>
   </tr>`).join('');
@@ -202,8 +202,8 @@ function imprimirTicket(r) {
       <tbody>${filas}</tbody>
     </table>
     <div class="totales">
-      <span>Total metros: ${Math.round(r.totalMetros * 100) / 100} m</span>
-      <span>Total rollos: ${r.totalRollos}</span>
+      <span>Total metros: ${Utils.formatCantidad(r.totalMetros)} m</span>
+      <span>Total rollos: ${Utils.formatCantidad(r.totalRollos)}</span>
       <span>Total: ${Utils.formatMonto(total)}</span>
     </div>
     <p class="muted" style="margin-top:24px">Documento generado por el sistema de Logotex — Gracias por su preferencia.</p>
@@ -251,7 +251,7 @@ function agregarDetalle(producto, metros, precio) {
     <td>
       <select id="${uid}" class="form-select form-select-sm det-producto">${opts}</select>
     </td>
-    <td><input type="number" class="form-control form-control-sm det-metros" value="${metros || ''}" min="1" placeholder="m"></td>
+    <td><input type="number" class="form-control form-control-sm det-metros" value="${metros || ''}" min="0.01" step="0.01" placeholder="m"></td>
     <td><input type="number" class="form-control form-control-sm det-precio" value="${precio || ''}" min="0" step="0.01" placeholder="$"></td>
     <td class="det-rollos text-center fw-semibold">0</td>
     <td class="det-subtotal text-end fw-semibold">$0.00</td>
@@ -297,10 +297,10 @@ function actualizarTotales() {
   let metros = 0, rollos = 0;
   filas.forEach(f => {
     metros += parseFloat(f.querySelector('.det-metros')?.value) || 0;
-    rollos += parseInt(f.querySelector('.det-rollos')?.textContent) || 0;
+    rollos += parseFloat(f.querySelector('.det-rollos')?.textContent) || 0;
   });
   document.getElementById('cmpTotalMetros').textContent = Math.round(metros * 100) / 100 + ' m';
-  document.getElementById('cmpTotalRollos').textContent = rollos;
+  document.getElementById('cmpTotalRollos').textContent = Utils.formatCantidad(rollos);
 }
 
 async function guardar() {
@@ -315,9 +315,9 @@ async function guardar() {
 
   for (const f of filas) {
     const idProducto = parseInt(f.querySelector('.det-producto').value);
-    const metros = parseInt(f.querySelector('.det-metros').value);
+    const metros = Utils.parseCantidad(f.querySelector('.det-metros').value);
     const precio = parseFloat(f.querySelector('.det-precio').value);
-    if (!metros || metros <= 0) { Utils.showToast('Indica los metros de cada producto', 'warning'); return; }
+    if (!isFinite(metros) || metros <= 0) { Utils.showToast('Indica los metros de cada producto', 'warning'); return; }
     if (precio < 0) { Utils.showToast('Precio de compra inv&aacute;lido', 'warning'); return; }
     detalles.push({ idProducto, metros, precioCompra: precio });
   }

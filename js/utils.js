@@ -272,12 +272,38 @@ const Utils = {
 
   formatUnidad(cantidad, unidadMedida) {
     const u = (unidadMedida || 'UNIDAD').toUpperCase();
-    if (u === 'METRO') return cantidad.toFixed(2) + ' m';
-    if (u === 'ROLLO') return cantidad + ' rollo' + (cantidad !== 1 ? 's' : '');
-    if (u === 'PIEZA') return cantidad + ' pza' + (cantidad !== 1 ? 's' : '');
-    if (u === 'KG' || u === 'KILOGRAMO') return cantidad.toFixed(2) + ' kg';
-    if (u === 'LITRO') return cantidad.toFixed(2) + ' L';
-    return cantidad + ' ' + (u === 'UNIDAD' ? 'pzs' : u.toLowerCase());
+    if (u === 'METRO') return Utils.formatCantidad(cantidad) + ' m';
+    if (u === 'ROLLO') return Utils.formatCantidad(cantidad) + ' rollo' + (Number(cantidad) !== 1 ? 's' : '');
+    if (u === 'PIEZA') return Utils.formatCantidad(cantidad) + ' pza' + (Number(cantidad) !== 1 ? 's' : '');
+    if (u === 'KG' || u === 'KILOGRAMO') return Utils.formatCantidad(cantidad) + ' kg';
+    if (u === 'LITRO') return Utils.formatCantidad(cantidad) + ' L';
+    return Utils.formatCantidad(cantidad) + ' ' + (u === 'UNIDAD' ? 'pzs' : u.toLowerCase());
+  },
+
+  formatCantidad(valor) {
+    const n = Number(valor);
+    if (!isFinite(n)) return '0';
+    const partes = n.toFixed(2).split('.');
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    let dec = partes[1].replace(/0+$/, '');
+    return partes[0] + (dec ? '.' + dec : '');
+  },
+
+  parseCantidad(text) {
+    if (text == null) return NaN;
+    return parseFloat(String(text).replace(/[^0-9.\-]/g, ''));
+  },
+
+  esUnidadEntera(unidadMedida) {
+    const u = (unidadMedida || 'UNIDAD').toUpperCase();
+    return u === 'UNIDAD' || u === 'PIEZA';
+  },
+
+  cantidadValida(cantidad, unidadMedida) {
+    const n = Number(cantidad);
+    if (!isFinite(n) || n <= 0) return false;
+    if (this.esUnidadEntera(unidadMedida)) return Number.isInteger(Math.round(n * 100) / 100) && Math.abs(n - Math.round(n)) < 1e-9;
+    return true;
   },
 
   formatMonto(valor) {

@@ -101,7 +101,7 @@ function renderTable() {
     const tipoDisplay = r.tipo.replace('_STOCK', '').replace('_', ' ');
     const origenClass = r.origen === 'MOVIMIENTO' ? 'badge-active' : 'badge bg-secondary text-white';
     const stockDisplay = r.stockAnterior != null && r.stockNuevo != null
-      ? r.stockAnterior + ' → ' + r.stockNuevo
+      ? Utils.formatCantidad(r.stockAnterior) + ' → ' + Utils.formatCantidad(r.stockNuevo)
       : '-';
 
     return `<tr>
@@ -109,7 +109,7 @@ function renderTable() {
       <td><span class="${badgeClass}">${Utils.capitalize(tipoDisplay)}</span></td>
       <td>${Utils.esc(r.entidad)}</td>
       <td>${Utils.esc(r.detalle)}</td>
-      <td class="fw-semibold">${r.cantidad != null ? r.cantidad : '-'}</td>
+      <td class="fw-semibold">${r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '-'}</td>
       <td>${stockDisplay}</td>
       <td>${Utils.esc(r.usuario)}</td>
       <td><span class="${origenClass}" style="font-size:0.7rem;padding:2px 8px;border-radius:10px">${r.origen}</span></td>
@@ -156,9 +156,9 @@ function exportarCSV() {
     r.tipo,
     r.entidad,
     r.detalle,
-    r.cantidad != null ? r.cantidad : '',
-    r.stockAnterior != null ? r.stockAnterior : '',
-    r.stockNuevo != null ? r.stockNuevo : '',
+    r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '',
+    r.stockAnterior != null ? Utils.formatCantidad(r.stockAnterior) : '',
+    r.stockNuevo != null ? Utils.formatCantidad(r.stockNuevo) : '',
     r.usuario,
     r.referencia || '',
     r.origen
@@ -181,9 +181,9 @@ function buildKardexRows() {
     r.tipo,
     r.entidad,
     r.detalle,
-    r.cantidad != null ? r.cantidad : '',
-    r.stockAnterior != null ? r.stockAnterior : '',
-    r.stockNuevo != null ? r.stockNuevo : '',
+    r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '',
+    r.stockAnterior != null ? Utils.formatCantidad(r.stockAnterior) : '',
+    r.stockNuevo != null ? Utils.formatCantidad(r.stockNuevo) : '',
     r.usuario,
     r.referencia || '',
     r.origen
@@ -212,8 +212,8 @@ function exportarPDF() {
       '<td>' + Utils.capitalize(r.tipo.replace('_STOCK', '').replace('_', ' ')) + '</td>' +
       '<td>' + Utils.esc(r.entidad) + '</td>' +
       '<td>' + Utils.esc(r.detalle) + '</td>' +
-      '<td class="right">' + (r.cantidad != null ? r.cantidad : '') + '</td>' +
-      '<td class="right">' + (r.stockAnterior != null ? r.stockAnterior + ' → ' + r.stockNuevo : '') + '</td>' +
+      '<td class="right">' + (r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '') + '</td>' +
+      '<td class="right">' + (r.stockAnterior != null ? Utils.formatCantidad(r.stockAnterior) + ' → ' + Utils.formatCantidad(r.stockNuevo) : '') + '</td>' +
       '<td>' + Utils.esc(r.usuario) + '</td>' +
     '</tr>'
   ).join('');

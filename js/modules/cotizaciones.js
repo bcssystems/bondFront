@@ -270,14 +270,18 @@ async function abrirModalEditar(id) {
     document.getElementById('cotCreditoInteres').value = c.porcentajeInteres != null ? c.porcentajeInteres : '0';
     toggleCreditoFields();
 
-    state.cart = (c.detalles || []).map(d => ({
-      idProducto: d.idProducto,
-      nombre: d.productoNombre,
-      sku: d.productoSku || '',
-      cantidad: d.cantidad,
-      precioUnitario: d.precioUnitario,
-      stockActual: null,
-    }));
+    state.cart = (c.detalles || []).map(d => {
+      const prod = state.productos.find(x => x.idProducto === d.idProducto);
+      return {
+        idProducto: d.idProducto,
+        nombre: d.productoNombre,
+        sku: d.productoSku || '',
+        cantidad: d.cantidad,
+        precioUnitario: d.precioUnitario,
+        stockActual: null,
+        unidadMedida: prod ? (prod.unidadMedida || 'UNIDAD') : 'UNIDAD',
+      };
+    });
 
     renderCart();
     new bootstrap.Modal(document.getElementById('cotizacionModal')).show();
@@ -326,7 +330,7 @@ async function buscarProductos(showAll) {
         return '<div class="pos-product-result-item ' + (disabled ? 'text-muted opacity-50' : '') + '" data-id="' + p.idProducto + '">' +
           '<div>' +
             '<div class="fw-semibold small">' + Utils.esc(p.nombre) + '</div>' +
-            '<small class="text-muted">SKU: ' + Utils.esc(p.sku || '-') + ' | ' + Utils.formatMonto(precio) + ' | Stock: ' + stock + '</small>' +
+            '<small class="text-muted">SKU: ' + Utils.esc(p.sku || '-') + ' | ' + Utils.formatMonto(precio) + ' | Stock: ' + Utils.formatCantidad(stock) + '</small>' +
             (sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : '') +
           '</div>' +
           '<div class="text-end">' +
@@ -374,16 +378,16 @@ function agregarAlCart(prodId) {
   const existente = state.cart.find(d => d.idProducto === prodId);
   if (existente) {
     if (existente.cantidad >= stock) {
-      Utils.showToast('Stock insuficiente: solo hay ' + stock + ' unidades de ' + p.nombre, 'warning');
+      Utils.showToast('Stock insuficiente: solo hay ' + Utils.formatCantidad(stock) + ' unidades de ' + p.nombre, 'warning');
       return;
     }
     if (stock <= 5 && existente.cantidad + 1 >= stock) {
-      Utils.showToast('Quedan solo ' + stock + ' unidades de ' + p.nombre, 'warning');
+      Utils.showToast('Quedan solo ' + Utils.formatCantidad(stock) + ' unidades de ' + p.nombre, 'warning');
     }
     existente.cantidad++;
   } else {
     if (stock <= 5) {
-      Utils.showToast('Quedan solo ' + stock + ' unidades de ' + p.nombre, 'warning');
+      Utils.showToast('Quedan solo ' + Utils.formatCantidad(stock) + ' unidades de ' + p.nombre, 'warning');
     }
     state.cart.push({
       idProducto: prodId,
@@ -392,6 +396,7 @@ function agregarAlCart(prodId) {
       cantidad: 1,
       precioUnitario: precio,
       stockActual: stock,
+      unidadMedida: p.unidadMedida || 'UNIDAD',
     });
   }
 
@@ -409,11 +414,14 @@ function renderCart() {
   } else {
     tbody.innerHTML = state.cart.map((d, i) => {
       const stock = d.stockActual;
+      const esEntera = Utils.esUnidadEntera(d.unidadMedida);
+      const step = esEntera ? '1' : '0.01';
+      const minQty = esEntera ? 1 : 0.01;
       const sinStock = stock != null && stock <= 0;
       const exceedsStock = stock != null && d.cantidad > stock;
       const stockHtml = stock == null
         ? '<span class="text-muted">&mdash;</span>'
-        : '<span class="fw-semibold ' + (exceedsStock ? 'text-danger' : (sinStock ? 'text-danger' : (stock <= 5 ? 'text-warning' : ''))) + '">' + stock + '</span>';
+        : '<span class="fw-semibold ' + (exceedsStock ? 'text-danger' : (sinStock ? 'text-danger' : (stock <= 5 ? 'text-warning' : ''))) + '">' + Utils.formatCantidad(stock) + '</span>';
       return '<tr>' +
         '<td>' +
           '<div class="fw-semibold small">' + Utils.esc(d.nombre) + '</div>' +
@@ -422,7 +430,7 @@ function renderCart() {
         '<td>' +
           '<div class="d-flex align-items-center gap-1">' +
             '<button class="pos-cart-qty-btn cot-cart-minus" data-index="' + i + '"><i class="fas fa-minus"></i></button>' +
-            '<span class="fw-semibold px-1">' + d.cantidad + '</span>' +
+            '<input type="number" class="form-control form-control-sm text-center cot-cart-qty" data-index="' + i + '" value="' + d.cantidad + '" min="' + minQty + '" step="' + step + '" style="width:60px;font-size:0.8rem;padding:2px 4px">' +
             '<button class="pos-cart-qty-btn cot-cart-plus" data-index="' + i + '"><i class="fas fa-plus"></i></button>' +
           '</div>' +
         '</td>' +
@@ -433,11 +441,37 @@ function renderCart() {
       '</tr>';
     }).join('');
 
+    tbody.querySelectorAll('.cot-cart-qty').forEach(input => {
+      input.addEventListener('change', () => {
+        const i = parseInt(input.dataset.index);
+        const item = state.cart[i];
+        if (!item) return;
+        const esEntera = Utils.esUnidadEntera(item.unidadMedida);
+        const minQty = esEntera ? 1 : 0.01;
+        let qty = Utils.parseCantidad(input.value);
+        if (!isFinite(qty) || qty < minQty) qty = minQty;
+        if (esEntera && Math.abs(qty - Math.round(qty)) > 1e-9) {
+          Utils.showToast('La cantidad debe ser un n\u00famero entero', 'warning');
+          input.value = item.cantidad;
+          return;
+        }
+        item.cantidad = Math.round(qty * 100) / 100;
+        renderCart();
+      });
+    });
+
     tbody.querySelectorAll('.cot-cart-minus').forEach(btn => {
       btn.addEventListener('click', () => {
         const i = parseInt(btn.dataset.index);
-        if (state.cart[i].cantidad > 1) state.cart[i].cantidad--;
-        else state.cart.splice(i, 1);
+        const item = state.cart[i];
+        const esEntera = Utils.esUnidadEntera(item.unidadMedida);
+        const minQty = esEntera ? 1 : 0.01;
+        if (item.cantidad > minQty + 1e-9) {
+          const paso = esEntera ? 1 : Math.min(1, item.cantidad - minQty);
+          item.cantidad = Math.max(minQty, Math.round((item.cantidad - paso) * 100) / 100);
+        } else {
+          state.cart.splice(i, 1);
+        }
         renderCart();
       });
     });
@@ -446,10 +480,10 @@ function renderCart() {
         const i = parseInt(btn.dataset.index);
         const item = state.cart[i];
         if (item.stockActual != null && item.cantidad >= item.stockActual) {
-          Utils.showToast('Stock insuficiente: solo hay ' + item.stockActual + ' unidades de ' + item.nombre, 'warning');
+          Utils.showToast('Stock insuficiente: solo hay ' + Utils.formatCantidad(item.stockActual) + ' unidades de ' + item.nombre, 'warning');
           return;
         }
-        item.cantidad++;
+        item.cantidad = Math.round((item.cantidad + 1) * 100) / 100;
         renderCart();
       });
     });
@@ -508,6 +542,11 @@ async function guardarCotizacion() {
   const plazoMeses = tipoVenta === 'CREDITO' ? (parseInt(document.getElementById('cotCreditoPlazo')?.value) || null) : null;
   const porcentajeInteres = tipoVenta === 'CREDITO' ? (parseFloat(document.getElementById('cotCreditoInteres')?.value) || 0) : null;
   const nota = document.getElementById('cotNota')?.value?.trim() || null;
+
+  if (state.cart.some(d => !Utils.cantidadValida(d.cantidad, d.unidadMedida))) {
+    Utils.showToast('Revisa las cantidades: los productos por UNIDAD deben ser enteros', 'warning');
+    return;
+  }
 
   const detalles = state.cart.map(d => ({
     idProducto: d.idProducto,
@@ -597,7 +636,7 @@ async function verDetalle(id) {
       html += '<tr>' +
         '<td class="fw-semibold">' + Utils.esc(d.productoNombre) + '</td>' +
         '<td class="text-muted">' + Utils.esc(d.productoSku || '-') + '</td>' +
-        '<td>' + d.cantidad + '</td>' +
+        '<td>' + Utils.formatCantidad(d.cantidad) + '</td>' +
         '<td>' + Utils.formatMonto(d.precioUnitario) + '</td>' +
         '<td class="fw-bold">' + Utils.formatMonto(d.subtotal) + '</td>' +
       '</tr>';

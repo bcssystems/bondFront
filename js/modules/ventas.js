@@ -216,7 +216,7 @@ async function cargarCotizacionDesdeLocalStorage() {
             idProducto: d.idProducto,
             cantidad: 1,
           });
-          if (d.cantidad > 1) {
+          if (d.cantidad !== 1) {
             await API.put('/carrito/actualizar', {
               idCaja: state.caja.idCaja,
               idProducto: d.idProducto,
@@ -232,6 +232,7 @@ async function cargarCotizacionDesdeLocalStorage() {
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
           stockActual: producto ? getStockSucursal(producto) : 0,
+          unidadMedida: producto ? (producto.unidadMedida || 'UNIDAD') : (d.unidadMedida || 'UNIDAD'),
         });
       }
     }
@@ -364,6 +365,7 @@ async function sincronizarCarritoDesdeServidor() {
       sku: r.productoSku || (prod ? prod.sku : ''),
       cantidad: r.cantidad,
       precioUnitario: prod ? (prod.precioBase || 0) : 0,
+      unidadMedida: prod ? (prod.unidadMedida || 'UNIDAD') : 'UNIDAD',
     };
   });
 
@@ -409,6 +411,7 @@ function iniciarPollingCaja() {
           sku: r.productoSku || (prod ? prod.sku : ''),
           cantidad: r.cantidad,
           precioUnitario: prod ? (prod.precioBase || 0) : 0,
+          unidadMedida: prod ? (prod.unidadMedida || 'UNIDAD') : 'UNIDAD',
         };
       });
       state.cart = [...envioItems, ...nuevosCart];
@@ -573,7 +576,7 @@ async function buscarProductos(showAll) {
             ${reservado ? '<br><small class="badge bg-warning text-dark mt-1"><i class="fas fa-lock me-1"></i>En uso en otra caja</small>' : ''}
           </div>
           <div class="text-end">
-            <small class="text-muted">${Utils.esc(unidad)} | Stock: ${stock}</small>
+            <small class="text-muted">${Utils.esc(unidad)} | Stock: ${Utils.formatCantidad(stock)}</small>
             <div class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(precioMostrar)}${precioEspecial && precioEspecial > 0 ? ' <span class="badge bg-success" style="font-size:0.55rem">P.E.</span>' : ''}</div>
             <button class="btn btn-sm ${disabled ? 'btn-secondary' : 'btn-success'} pos-add-cart" data-id="${p.idProducto}" style="font-size:0.7rem" ${disabled ? 'disabled' : ''}>
               <i class="fas fa-cart-plus"></i>
@@ -632,7 +635,7 @@ async function agregarAlCart(prodId) {
       await API.put('/carrito/actualizar', {
         idCaja: state.caja.idCaja,
         idProducto: prodId,
-        cantidad: existente.cantidad + 1,
+        cantidad: Math.round((existente.cantidad + 1) * 100) / 100,
       });
     } catch (err) {
       Utils.showToast(err.message, 'error');
@@ -657,7 +660,7 @@ async function agregarAlCart(prodId) {
       cantidad: 1,
       precioUnitario: precio,
       stockActual: getStockSucursal(p),
-      unidadMedida: p.unidadMedida || 'METRO',
+      unidadMedida: p.unidadMedida || 'UNIDAD',
     });
   }
 
@@ -676,8 +679,10 @@ function renderCart() {
   } else {
     tbody.innerHTML = state.cart.map((d, i) => {
       const unidad = (d.unidadMedida || 'UNIDAD').toUpperCase();
-      const step = (unidad === 'METRO' || unidad === 'KG' || unidad === 'LITRO' || unidad === 'KILOGRAMO') ? '0.01' : '1';
-      const stockVisible = ['VR', 'ENVIO'].includes(d.sku || '') ? '' : '<td class="text-center small text-muted">' + (d.stockActual != null ? d.stockActual : '-') + '</td>';
+      const esEntera = Utils.esUnidadEntera(unidad);
+      const step = esEntera ? '1' : '0.01';
+      const minQty = esEntera ? 1 : 0.01;
+      const stockVisible = ['VR', 'ENVIO'].includes(d.sku || '') ? '' : '<td class="text-center small text-muted">' + (d.stockActual != null ? Utils.formatCantidad(d.stockActual) : '-') + '</td>';
       return '<tr>' +
       '<td>' +
         '<div class="fw-semibold small">' + Utils.esc(d.nombre) + '</div>' +
@@ -688,7 +693,7 @@ function renderCart() {
       '<td>' +
         '<div class="d-flex align-items-center gap-1">' +
           '<button class="pos-cart-qty-btn pos-cart-qty-minus" data-index="' + i + '"><i class="fas fa-minus"></i></button>' +
-          '<input type="number" class="form-control form-control-sm pos-cart-qty-input text-center" data-index="' + i + '" value="' + d.cantidad + '" min="1" step="' + step + '" style="width:55px;font-size:0.8rem;padding:2px 4px">' +
+          '<input type="number" class="form-control form-control-sm pos-cart-qty-input text-center" data-index="' + i + '" value="' + d.cantidad + '" min="' + minQty + '" step="' + step + '" style="width:55px;font-size:0.8rem;padding:2px 4px">' +
           '<button class="pos-cart-qty-btn pos-cart-qty-plus" data-index="' + i + '"><i class="fas fa-plus"></i></button>' +
         '</div>' +
       '</td>' +
@@ -708,8 +713,17 @@ function renderCart() {
         const i = parseInt(input.dataset.index);
         const item = state.cart[i];
         if (!item) return;
-        let newQty = parseFloat(input.value) || 1;
-        if (newQty < 1) newQty = 1;
+        let newQty = Utils.parseCantidad(input.value);
+        const unidadItem = (item.unidadMedida || 'UNIDAD').toUpperCase();
+        const esEnteraItem = Utils.esUnidadEntera(unidadItem);
+        const minItem = esEnteraItem ? 1 : 0.01;
+        if (!isFinite(newQty) || newQty < minItem) newQty = minItem;
+        if (esEnteraItem && Math.abs(newQty - Math.round(newQty)) > 1e-9) {
+          Utils.showToast('La cantidad debe ser un n\u00famero entero', 'warning');
+          input.value = item.cantidad;
+          return;
+        }
+        newQty = Math.round(newQty * 100) / 100;
         if (item.sku === 'VR') {
           item.cantidad = newQty;
           try { await API.put('/carrito/rapidos/' + item._idRapido, { idCaja: state.caja.idCaja, cantidad: newQty }); } catch (_) {}
@@ -757,15 +771,19 @@ function renderCart() {
           renderCart();
           return;
         }
-        if (item.cantidad > 1) {
+        const esEnteraItem = Utils.esUnidadEntera(item.unidadMedida);
+        const minItem = esEnteraItem ? 1 : 0.01;
+        if (item.cantidad > minItem + 1e-9) {
+          const paso = esEnteraItem ? 1 : Math.min(1, item.cantidad - minItem);
+          const nueva = Math.max(minItem, Math.round((item.cantidad - paso) * 100) / 100);
           try {
             await API.put('/carrito/actualizar', {
               idCaja: state.caja.idCaja,
               idProducto: item.idProducto,
-              cantidad: item.cantidad - 1,
+              cantidad: nueva,
             });
           } catch (err) { Utils.showToast(err.message, 'error'); return; }
-          item.cantidad--;
+          item.cantidad = nueva;
         } else {
           try {
             await API.del('/carrito/quitar/' + item.idProducto + '?idCaja=' + state.caja.idCaja);
@@ -800,10 +818,10 @@ function renderCart() {
           await API.put('/carrito/actualizar', {
             idCaja: state.caja.idCaja,
             idProducto: item.idProducto,
-            cantidad: item.cantidad + 1,
+            cantidad: Math.round((item.cantidad + 1) * 100) / 100,
           });
         } catch (err) { Utils.showToast(err.message, 'error'); return; }
-        item.cantidad++;
+        item.cantidad = Math.round((item.cantidad + 1) * 100) / 100;
         renderCart();
       });
     });
@@ -1882,7 +1900,7 @@ async function reanudarEspera(idVenta) {
         idProducto: d.idProducto,
         cantidad: 1,
       });
-      if (d.cantidad > 1) {
+      if (d.cantidad !== 1) {
         await API.put('/carrito/actualizar', {
           idCaja: state.caja.idCaja,
           idProducto: d.idProducto,
@@ -2055,7 +2073,8 @@ async function realizarVentaRapida() {
   const desc = document.getElementById('posVrDescripcion').value.trim();
   const precioVenta = parseFloat(document.getElementById('posVrVenta').value);
   const precioCompra = parseFloat(document.getElementById('posVrCompra').value) || null;
-  const cantidad = parseInt(document.getElementById('posVrCantidad').value) || 1;
+  const cantidad = Utils.parseCantidad(document.getElementById('posVrCantidad').value) || 1;
+  if (!isFinite(cantidad) || cantidad <= 0) { Utils.showToast('Cantidad inv\u00e1lida', 'warning'); return; }
 
   if (!desc) { Utils.showToast('Descripci\u00f3n requerida', 'warning'); return; }
   if (!precioVenta || precioVenta <= 0) { Utils.showToast('Precio inv\u00e1lido', 'warning'); return; }
@@ -2336,6 +2355,7 @@ async function aplicarPromocion(promoId) {
         cantidad: 1,
         precioUnitario: promo.precioFinal || 0,
         stockActual: getStockSucursal(prod),
+        unidadMedida: prod.unidadMedida || 'UNIDAD',
         _promoNombre: promo.nombre,
         _promoId: promoId,
       });
@@ -2385,6 +2405,7 @@ async function aplicarCombo(comboId) {
           cantidad: det.cantidad,
           precioUnitario: unitPrice,
           stockActual: stockSuc,
+          unidadMedida: prod.unidadMedida || 'UNIDAD',
           _comboNombre: combo.nombre,
           _comboId: comboId,
         });

@@ -382,7 +382,7 @@ export function printRemisionVenta(venta, opts) {
     return `
     <tr class="detalle-row">
       <td>${nombre}${attrs}</td>
-      <td class="center">${d.cantidad}</td>
+      <td class="center">${Utils.formatCantidad(d.cantidad)}</td>
       <td class="center small">${Utils.esc(unidad)}</td>
       <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
       <td class="right">${Utils.formatMonto(dSubtotal)}</td>
@@ -558,7 +558,7 @@ export function printCotizacion(cotizacion, opts) {
     return `
     <tr class="detalle-row">
       <td>${nombre}${sku}</td>
-      <td class="center">${d.cantidad || 0}</td>
+      <td class="center">${Utils.formatCantidad(d.cantidad || 0)}</td>
       <td class="center small">—</td>
       <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
       <td class="right">${Utils.formatMonto(dSubtotal)}</td>

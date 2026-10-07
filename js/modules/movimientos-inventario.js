@@ -128,9 +128,10 @@ async function actualizarStockInfo() {
       const inv = (p.inventarioSucursales || []).find(i => i.idSucursal === parseInt(idSucursal));
       stockSuc = inv ? inv.stock : null;
     }
-    let txt = 'Stock actual: <strong>' + (p.stockActual != null ? p.stockActual : 0) + '</strong>';
+    state.productoMovActual = p;
+    let txt = 'Stock actual: <strong>' + Utils.formatCantidad(p.stockActual != null ? p.stockActual : 0) + '</strong>';
     if (idSucursal) {
-      txt += ' | En sucursal: <strong>' + (stockSuc != null ? stockSuc : 0) + '</strong>';
+      txt += ' | En sucursal: <strong>' + Utils.formatCantidad(stockSuc != null ? stockSuc : 0) + '</strong>';
     }
     info.innerHTML = txt;
   } catch (_) {}
@@ -183,16 +184,16 @@ function renderTable() {
     }
 
     const stockDisplay = r.stockAnterior != null && r.stockNuevo != null
-      ? r.stockAnterior + ' &rarr; ' + r.stockNuevo
+      ? Utils.formatCantidad(r.stockAnterior) + ' &rarr; ' + Utils.formatCantidad(r.stockNuevo)
       : '-';
-    const detalle = r.observacion || (r.tipoMovimiento + ' de ' + r.cantidad + ' unidades');
+    const detalle = r.observacion || (r.tipoMovimiento + ' de ' + Utils.formatCantidad(r.cantidad) + ' unidades');
 
     return `<tr>
       <td class="text-nowrap">${Utils.formatDateTime(r.fechaMovimiento)}</td>
       <td><span class="${badgeClass}">${Utils.capitalize(r.tipoMovimiento.replace('_', ' '))}</span></td>
       <td><span class="fw-semibold">${Utils.esc(r.productoNombre || '')}</span><br><small class="text-muted">${Utils.esc(r.productoSku || '')}</small></td>
       <td>${Utils.esc(detalle)}</td>
-      <td class="fw-semibold">${r.cantidad != null ? r.cantidad : '-'}</td>
+      <td class="fw-semibold">${r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '-'}</td>
       <td>${stockDisplay}</td>
       <td>${Utils.esc(r.sucursalNombre || 'Global')}</td>
       <td>${Utils.esc(r.usuario)}</td>
@@ -235,11 +236,18 @@ async function registrarMovimiento() {
   const idProducto = document.getElementById('movProducto').value;
   const idSucursal = document.getElementById('movSucursal').value;
   const tipoMovimiento = document.getElementById('movTipo').value;
-  const cantidad = parseInt(document.getElementById('movCantidad').value);
+  const cantidad = Utils.parseCantidad(document.getElementById('movCantidad').value);
 
   if (!idProducto) { Utils.showToast('Selecciona un producto', 'warning'); return; }
   if (!idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
-  if (!cantidad || cantidad <= 0) { Utils.showToast('Ingresa una cantidad v\u00e1lida', 'warning'); return; }
+  if (!isFinite(cantidad) || cantidad <= 0) { Utils.showToast('Ingresa una cantidad v\u00e1lida', 'warning'); return; }
+  const prodMov = state.productoMovActual && state.productoMovActual.idProducto === parseInt(idProducto)
+    ? state.productoMovActual
+    : (state.productos || []).find(p => p.idProducto === parseInt(idProducto));
+  if (prodMov && !Utils.cantidadValida(cantidad, prodMov.unidadMedida)) {
+    Utils.showToast('La cantidad debe ser un n\u00famero entero', 'warning');
+    return;
+  }
 
   const payload = {
     tipoMovimiento,
@@ -264,9 +272,9 @@ function buildRows() {
     r.tipoMovimiento,
     r.productoSku + ' ' + (r.productoNombre || ''),
     r.observacion || '',
-    r.cantidad != null ? r.cantidad : '',
-    r.stockAnterior != null ? r.stockAnterior : '',
-    r.stockNuevo != null ? r.stockNuevo : '',
+    r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '',
+    r.stockAnterior != null ? Utils.formatCantidad(r.stockAnterior) : '',
+    r.stockNuevo != null ? Utils.formatCantidad(r.stockNuevo) : '',
     r.sucursalNombre || 'Global',
     r.usuario,
   ]);
@@ -288,8 +296,8 @@ function exportarPDF() {
       '<td>' + Utils.capitalize(r.tipoMovimiento.replace('_', ' ')) + '</td>' +
       '<td>' + Utils.esc(r.productoSku + ' ' + (r.productoNombre || '')) + '</td>' +
       '<td>' + Utils.esc(r.observacion || '') + '</td>' +
-      '<td class="right">' + (r.cantidad != null ? r.cantidad : '') + '</td>' +
-      '<td class="right">' + (r.stockAnterior != null ? r.stockAnterior + ' -> ' + r.stockNuevo : '') + '</td>' +
+      '<td class="right">' + (r.cantidad != null ? Utils.formatCantidad(r.cantidad) : '') + '</td>' +
+      '<td class="right">' + (r.stockAnterior != null ? Utils.formatCantidad(r.stockAnterior) + ' -> ' + Utils.formatCantidad(r.stockNuevo) : '') + '</td>' +
       '<td>' + Utils.esc(r.sucursalNombre || 'Global') + '</td>' +
       '<td>' + Utils.esc(r.usuario) + '</td>' +
     '</tr>'

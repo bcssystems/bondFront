@@ -163,7 +163,7 @@ async function verDetalle(id) {
   try {
     const venta = await API.get('/ventas/' + id);
     const detalles = (venta.detalles || []).map(d =>
-      '<tr><td>' + Utils.esc(d.productoNombre || d.descripcion || 'Producto') + '</td><td class="text-center">' + d.cantidad +
+      '<tr><td>' + Utils.esc(d.productoNombre || d.descripcion || 'Producto') + '</td><td class="text-center">' + Utils.formatCantidad(d.cantidad) +
       '</td><td>' + Utils.formatMonto(d.precioUnitario || 0) + '</td><td>' + Utils.formatMonto(d.subtotal || 0) + '</td></tr>'
     ).join('');
     const estadoBadge = venta.estado === 'CANCELADA'

@@ -252,7 +252,7 @@ async function verDetalle(id) {
       const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
       return `<tr>
         <td>${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
-        <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
+        <td class="center">${Utils.formatCantidad(d.cantidad)} ${Utils.esc(unidad)}</td>
         <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
         <td class="right">${Utils.formatMonto(d.subtotal || 0)}</td>
       </tr>`;
