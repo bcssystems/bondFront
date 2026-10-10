@@ -25,6 +25,7 @@ let state = {
   preciosClienteMap: {},
   configs: {},
   abonoPOSClienteId: null,
+  creditoPendiente: null,
   posProductPanelOpen: false,
 };
 
@@ -1084,18 +1085,22 @@ async function confirmarCobro() {
       Utils.showToast('El cliente seleccionado no tiene cr\u00e9dito habilitado', 'warning');
       return;
     }
+    const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+    const totalCubierto = sumaPagos + montoCredito;
+    if (Math.abs(totalCubierto - total) > 0.01) {
+      Utils.showToast(totalCubierto < total
+        ? 'La suma de efectivo y crédito debe cubrir el total de la venta'
+        : 'La suma de efectivo y crédito no puede exceder el total de la venta', 'warning');
+      return;
+    }
     if (cliente.limiteCredito != null) {
       const disp = cliente.limiteCredito - (cliente.saldoActual || 0);
-      if (total > disp) {
-        Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible (' + Utils.formatMonto(disp) + ')', 'warning');
+      if (montoCredito > disp) {
+        Utils.showToast('El monto a crédito excede el límite disponible (' + Utils.formatMonto(disp) + ')', 'warning');
         return;
       }
     }
-    if (pagos.length > 0 && (pagos.reduce((s, p) => s + p.monto, 0) + montoCredito + 0.01) < total) {
-      Utils.showToast('La suma de los pagos debe ser al menos igual al total', 'warning');
-      return;
-    }
-    await pedirConfirmarCredito(total, subtotal, clienteId, nota);
+    await pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito);
     return;
   }
 
@@ -1231,11 +1236,11 @@ async function confirmarPagoEnviado() {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
+async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito) {
+  state.creditoPendiente = { pagos, montoCredito, total };
   const cliente = state.clientes.find(c => c.idCliente === clienteId);
-  document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(total);
+  document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
-  document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(total);
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
 }
@@ -1243,7 +1248,11 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
 async function confirmarCreditoPOS() {
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
-  const total = Utils.parseMonto(document.getElementById('posCreditoTotal').textContent);
+  const creditoPendiente = state.creditoPendiente || { pagos: [], montoCredito: 0, total: 0 };
+
+  const total = creditoPendiente.total != null
+    ? creditoPendiente.total
+    : Utils.parseMonto(document.getElementById('posCreditoTotal').textContent);
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
@@ -1259,6 +1268,7 @@ async function confirmarCreditoPOS() {
     descuento: subtotal - total,
     total: total,
     nota: nota,
+    montoCredito: creditoPendiente.montoCredito,
     plazoMeses: plazoMeses,
     porcentajeInteres: porcentajeInteres,
     detalles: state.cart.map(d => ({
@@ -1269,7 +1279,7 @@ async function confirmarCreditoPOS() {
       subtotal: d.cantidad * d.precioUnitario,
       atributosText: null,
     })),
-    pagos: [],
+    pagos: creditoPendiente.pagos,
   };
   try {
     await finalizarEsperaActiva();
@@ -1281,6 +1291,7 @@ async function confirmarCreditoPOS() {
     await refreshCaja();
     await cargarEsperas();
     imprimirTicketVenta(ventaCreada, 2, true, plazoMeses, porcentajeInteres, cInfo);
+    state.creditoPendiente = null;
     if (state.idCotizacionActiva) {
       try {
         await API.post('/cotizaciones/' + state.idCotizacionActiva + '/convertir');
