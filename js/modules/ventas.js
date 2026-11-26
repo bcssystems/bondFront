@@ -27,6 +27,8 @@ let state = {
   abonoPOSClienteId: null,
   creditoPendiente: null,
   posProductPanelOpen: false,
+  procesandoCobro: false,
+  procesandoCredito: false,
 };
 
 const REGIMENES_FISCALES = [
@@ -1048,6 +1050,25 @@ function recalcularSumaCobro() {
 }
 
 async function confirmarCobro() {
+  if (state.procesandoCobro) return;
+  state.procesandoCobro = true;
+  const boton = document.getElementById('btnConfirmarCobroPOS');
+  if (boton) {
+    boton.disabled = true;
+    boton.setAttribute('aria-busy', 'true');
+  }
+  try {
+    await confirmarCobroInterno();
+  } finally {
+    state.procesandoCobro = false;
+    if (boton) {
+      boton.disabled = false;
+      boton.removeAttribute('aria-busy');
+    }
+  }
+}
+
+async function confirmarCobroInterno() {
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
   if (state.cobroEnviadoId) {
@@ -1246,6 +1267,25 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, mo
 }
 
 async function confirmarCreditoPOS() {
+  if (state.procesandoCredito) return;
+  state.procesandoCredito = true;
+  const boton = document.getElementById('btnConfirmarCreditoPOS');
+  if (boton) {
+    boton.disabled = true;
+    boton.setAttribute('aria-busy', 'true');
+  }
+  try {
+    await confirmarCreditoPOSInterno();
+  } finally {
+    state.procesandoCredito = false;
+    if (boton) {
+      boton.disabled = false;
+      boton.removeAttribute('aria-busy');
+    }
+  }
+}
+
+async function confirmarCreditoPOSInterno() {
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
   const creditoPendiente = state.creditoPendiente || { pagos: [], montoCredito: 0, total: 0 };
